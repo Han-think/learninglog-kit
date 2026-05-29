@@ -1,0 +1,62 @@
+# learninglog-kit 설정 파일
+# 문서: https://github.com/your-repo/learninglog-kit/docs/llm-providers.md
+
+project:
+  name: "My Learning Log"
+  language: "ko"            # 기본 언어 (ko / en)
+
+paths:
+  inbox:    "00_inbox"
+  registry: "01_registry/source_registry.csv"
+  extracted: "02_extracted"
+  working:   "03_working_notes"
+  drafts:    "04_blog_drafts"
+  reports:   "09_reports"
+
+# ──────────────────────────────────────────────────────────
+# LLM 설정
+#
+# provider 를 하나 선택하고 해당 섹션에 api_key 를 입력하세요.
+#
+#  무료:
+#    gemini  → Google AI Studio  https://aistudio.google.com
+#    groq    → Groq Console      https://console.groq.com
+#    ollama  → 로컬 실행          https://ollama.com
+#
+#  유료:
+#    claude  → Anthropic          https://console.anthropic.com
+#    openai  → OpenAI             https://platform.openai.com
+#
+#  없음:
+#    none    → intake / queue 만 사용 가능
+# ──────────────────────────────────────────────────────────
+llm:
+  provider: "none"          # 위 목록 중 하나로 변경
+
+  ollama:
+    host:  "http://127.0.0.1:11434"
+    model: "llama3.2:3b"
+
+  gemini:
+    api_key: ""             # 또는 환경변수 GEMINI_API_KEY
+    model:   "gemini-1.5-flash"
+
+  groq:
+    api_key: ""             # 또는 환경변수 GROQ_API_KEY
+    model:   "llama-3.1-8b-instant"
+
+  claude:
+    api_key: ""             # 또는 환경변수 ANTHROPIC_API_KEY
+    model:   "claude-haiku-4-5"
+
+  openai:
+    api_key: ""             # 또는 환경변수 OPENAI_API_KEY
+    model:   "gpt-4o-mini"
+
+# ──────────────────────────────────────────────────────────
+# 블로그 연동 (선택)
+# ──────────────────────────────────────────────────────────
+blog:
+  platform:    "none"       # hugo | jekyll | none
+  source_path: "../blog-source"
+  auto_push:   false        # true 로 바꾸면 승인 후 자동 git push

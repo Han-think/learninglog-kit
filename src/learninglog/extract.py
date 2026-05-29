@@ -1,0 +1,136 @@
+"""extract — LLM 으로 소스 처리 (classify → extract → working_note)."""
+
+from __future__ import annotations
+
+import csv
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+from rich.console import Console
+
+from .config import resolve_path
+from .adapters.base import LLMAdapter
+
+console = Console()
+
+PROMPTS = {
+    "classify": (
+        "너는 학습 노트 분류 워커다.\n"
+        "아래 노트를 읽고 다음 JSON 형식으로만 출력해라. 다른 텍스트 없이 JSON만.\n"
+        '{{"source_type":"","topic":"","language":"","public_policy":"",'
+        '"target_section":"learning|practice|projects|goals","tags":[]}}\n---\n{body}'
+    ),
+    "extract": (
+        "너는 학습 노트 사실 추출 워커다.\n"
+        "핵심 사실만 추출해라. 개인 해석은 포함하지 마라. 한국어로.\n"
+        "출력:\n# Extracted Summary\n## 핵심 개념\n## 명령어 / 코드\n## 기억할 사실\n---\n{body}"
+    ),
+    "working_note": (
+        "너는 학습 워킹 노트 생성 워커다.\n"
+        "아래 노트를 바탕으로 한국어 워킹 노트를 작성해라.\n"
+        "초보자 시점, 학습자의 혼란을 중심으로.\n"
+        "포함: 무엇이 헷갈렸나 / 정리된 이해 / 실습 예시 / "
+        "초보자 키워드(의미+검색어) / 내 프로젝트 연결 / 다음 복습 주제\n---\n{body}"
+    ),
+}
+
+
+def run_extract(
+    cfg: dict[str, Any],
+    adapter: LLMAdapter,
+    source_id: str = "",
+    skip_llm: bool = False,
+) -> None:
+    root       = resolve_path(cfg, "registry", "01_registry/source_registry.csv").parent.parent
+    registry   = resolve_path(cfg, "registry", "01_registry/source_registry.csv")
+    inbox      = resolve_path(cfg, "inbox", "00_inbox")
+    extracted  = resolve_path(cfg, "extracted", "02_extracted") / "concept_extracts"
+    working    = resolve_path(cfg, "working", "03_working_notes") / "daily_logs"
+    today      = date.today().strftime("%Y-%m-%d")
+
+    extracted.mkdir(parents=True, exist_ok=True)
+    working.mkdir(parents=True, exist_ok=True)
+
+    # 대상 소스 선택
+    with open(registry, encoding="utf-8") as f:
+        all_rows = list(csv.DictReader(f))
+
+    if source_id:
+        targets = [r for r in all_rows if r["source_id"] == source_id]
+    else:
+        targets = [
+            r for r in all_rows
+            if r.get("status") in ("registered", "new")
+            and r.get("source_type") == "personal_note"
+            and r.get("public_policy") in ("public", "partial-public")
+        ]
+
+    if not targets:
+        console.print("[yellow]처리할 소스 없음.[/]")
+        return
+
+    console.print(f"\n  대상: [cyan]{len(targets)}[/] 개  |  LLM: [cyan]{adapter.provider_name}[/]\n")
+
+    for row in targets:
+        sid   = row["source_id"]
+        topic = row["topic"]
+        src   = root / row["source_path"].replace("/", "\\")
+
+        console.print(f"  [magenta][{sid}][/] {topic}")
+
+        if not src.exists() or src.suffix.lower() not in (".md", ".txt"):
+            console.print("    [dim]SKIP — 파일 없음 또는 텍스트 아님[/]")
+            continue
+
+        body = src.read_text(encoding="utf-8")
+
+        if skip_llm:
+            console.print("    [dim]--skip-llm: LLM 건너뜀[/]")
+            continue
+
+        # extract
+        ext_path = extracted / f"{sid}_{topic}_extract.md"
+        if ext_path.exists():
+            console.print("    [dim]MODE 2 extract  SKIP (이미 존재)[/]")
+        else:
+            console.print(f"    MODE 2 extract   [{adapter.provider_name}] ", end="")
+            try:
+                result = adapter.generate(PROMPTS["extract"].format(body=body))
+                fm = f"---\nsource_id: {sid}\nextract_date: {today}\nmodel: {adapter.provider_name}\n---\n\n"
+                ext_path.write_text(fm + result, encoding="utf-8")
+                _update_status(registry, sid, "extracted")
+                console.print("[green]OK[/]")
+            except Exception as e:
+                console.print(f"[red]FAIL[/] {e}")
+                continue
+
+        # working_note
+        wk_path = working / f"{today}_{topic}.md"
+        if wk_path.exists():
+            console.print("    [dim]MODE 3 working   SKIP (이미 존재)[/]")
+        else:
+            console.print(f"    MODE 3 working   [{adapter.provider_name}] ", end="")
+            try:
+                result = adapter.generate(PROMPTS["working_note"].format(body=body))
+                fm = f"---\nsource_id: {sid}\nnote_date: {today}\nmodel: {adapter.provider_name}\n---\n\n"
+                wk_path.write_text(fm + result, encoding="utf-8")
+                _update_status(registry, sid, "working")
+                console.print("[green]OK[/]")
+            except Exception as e:
+                console.print(f"[red]FAIL[/] {e}")
+
+    console.print()
+
+
+def _update_status(registry: Path, source_id: str, new_status: str) -> None:
+    with open(registry, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        if row["source_id"] == source_id:
+            row["status"] = new_status
+    fieldnames = rows[0].keys() if rows else []
+    with open(registry, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)

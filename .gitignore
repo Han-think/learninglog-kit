@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 설정 (API 키 보호)
+.learninglog/config.yaml
+*.env
+.env
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 테스트 출력
+tests/fixtures/
+.pytest_cache/
+
+# pip 설치 잔여물
+*.dist-info/

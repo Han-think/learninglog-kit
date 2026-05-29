@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "learninglog-kit"
+version = "0.1.0"
+description = "Personal learning pipeline — intake, extract, publish with any LLM"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["learning", "notes", "llm", "automation", "hugo", "jekyll"]
+
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "httpx>=0.24",      # Ollama REST 호출
+    "rich>=13.0",       # 터미널 출력
+]
+
+[project.optional-dependencies]
+gemini  = ["google-generativeai>=0.8"]
+groq    = ["groq>=0.9"]
+claude  = ["anthropic>=0.30"]
+openai  = ["openai>=1.0"]
+web     = ["fastapi>=0.100", "uvicorn>=0.20", "jinja2>=3.0"]
+all     = [
+    "google-generativeai>=0.8",
+    "groq>=0.9",
+    "anthropic>=0.30",
+    "openai>=1.0",
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
+    "jinja2>=3.0",
+]
+
+[project.scripts]
+learninglog = "learninglog.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
