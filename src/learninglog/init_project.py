@@ -75,10 +75,13 @@ def init_project(target: Path) -> None:
     console.print(tree)
 
     console.print()
-    console.print("[bold green]초기화 완료![/]")
+    console.print("[bold green]폴더 구조 생성 완료![/]")
     console.print(f"  설정 파일: [cyan]{config_dest}[/]")
-    console.print("  다음 단계: config.yaml 에서 LLM provider 를 설정하세요.")
-    console.print("  문서:      [link=docs/llm-providers.md]docs/llm-providers.md[/link]")
+    console.print()
+
+    # 대화형 설정 마법사 실행
+    from .setup_wizard import run_wizard
+    run_wizard(config_dest)
 
 
 def _default_config() -> str:
