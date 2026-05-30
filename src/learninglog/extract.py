@@ -164,6 +164,9 @@ def run_extract(
                     section = cdata.get("target_section", "learning")
                 except Exception:
                     pass
+            # section 검증 — 정해진 4개만 허용
+            if section not in ("learning", "goals", "practice", "projects"):
+                section = "learning"
 
             draft_dir  = resolve_path(cfg, "drafts", "04_blog_drafts") / section
             draft_path = draft_dir / f"{topic}.md"

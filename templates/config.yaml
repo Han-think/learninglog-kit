@@ -55,9 +55,20 @@ llm:
     model:   "gpt-4o-mini"
 
 # ──────────────────────────────────────────────────────────
-# 블로그 연동 (선택)
+# 블로그 연동 (선택) — learninglog publish 가 사용
 # ──────────────────────────────────────────────────────────
 blog:
-  platform:    "none"       # hugo | jekyll | none
-  source_path: "../blog-source"
-  auto_push:   false        # true 로 바꾸면 승인 후 자동 git push
+  platform:       "none"        # hugo | jekyll | none
+  source_path:    "../blog-source"  # 블로그 소스 폴더 경로
+  content_subdir: "content"     # 글이 들어갈 하위 폴더 (hugo=content)
+  auto_build:     true          # publish 시 hugo 빌드 실행
+  auto_push:      false         # true 로 바꾸면 git add/commit/push 자동
+  #
+  # 발행 동작:
+  #   04_blog_drafts/{section}/*.md
+  #     → draft:false 변환, source_id 제거, ai_assisted:true 마킹
+  #     → {source_path}/{content_subdir}/{section}/ 으로 복사
+  #     → (auto_build) hugo 빌드  → (auto_push) git push
+  #
+  # 주의: public submodule / GitHub Actions 등 고급 배포는
+  #       auto_push=false 로 두고 블로그 폴더에서 직접 배포하세요.

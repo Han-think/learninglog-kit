@@ -66,7 +66,8 @@ my-learning/
 ```bash
 learninglog intake     # 새 파일 감지 및 등록
 learninglog queue      # 처리 순서 확인
-learninglog extract    # LLM으로 노트 생성
+learninglog extract    # LLM으로 노트 + 블로그 초안 생성
+learninglog publish    # 블로그로 발행 (blog 설정 시)
 ```
 
 ---
@@ -75,12 +76,24 @@ learninglog extract    # LLM으로 노트 생성
 
 | 명령어 | 설명 |
 |-------|------|
-| `learninglog init [폴더]` | 프로젝트 폴더 구조 생성 |
+| `learninglog init [폴더]` | 프로젝트 폴더 구조 생성 + LLM 설정 마법사 |
 | `learninglog intake` | 새 파일 자동 등록 |
 | `learninglog queue` | 처리 대기 목록 확인 |
-| `learninglog extract` | LLM으로 extract + working_note 생성 |
+| `learninglog extract` | LLM으로 extract + working_note + blog_draft 생성 |
+| `learninglog publish` | 초안을 블로그로 발행 (draft:false + ai_assisted 마킹 + hugo 빌드 + git push) |
 | `learninglog status` | 전체 현황 요약 |
 | `learninglog doctor` | 설정 및 LLM 연결 진단 |
+
+### 블로그 발행 설정
+
+`.learninglog/config.yaml` 의 `blog` 섹션:
+```yaml
+blog:
+  platform:    "hugo"            # hugo | jekyll | none
+  source_path: "../blog-source"  # 블로그 소스 폴더
+  auto_build:  true              # hugo 빌드 실행
+  auto_push:   false             # git push 자동 (기본 off)
+```
 
 ---
 

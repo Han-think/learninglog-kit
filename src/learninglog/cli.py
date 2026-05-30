@@ -94,6 +94,22 @@ def extract(source_id: str, skip_llm: bool, max_chars: int) -> None:
                 skip_llm=skip_llm, max_chars=max_chars)
 
 
+# ─── publish ───────────────────────────────────────────────
+@main.command()
+@click.option("--source-id", "-s", default="", help="특정 소스만 발행")
+def publish(source_id: str) -> None:
+    """04_blog_drafts 초안을 블로그로 발행합니다 (config.yaml 의 blog 설정 사용).
+
+    \b
+    draft:false 변환 + source_id 제거 + ai_assisted 마킹 후
+    blog.source_path/content/{section}/ 으로 복사.
+    blog.auto_build=true 면 hugo 빌드, blog.auto_push=true 면 git push.
+    """
+    cfg = _load_or_exit()
+    from .publish import run_publish
+    run_publish(cfg, source_id=source_id)
+
+
 # ─── status ────────────────────────────────────────────────
 @main.command()
 def status() -> None:
