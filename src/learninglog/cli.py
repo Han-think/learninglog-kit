@@ -152,6 +152,47 @@ def clean(outputs: bool, registry: bool, config_: bool, api_key: bool, all_: boo
               registry=registry, api_key=api_key, yes=yes)
 
 
+# ─── uninstall ─────────────────────────────────────────────
+@main.command()
+@click.option("--keep-package", is_flag=True, help="데이터만 제거하고 pip 패키지는 유지")
+@click.option("--yes", "-y", is_flag=True, help="확인 없이 진행")
+def uninstall(keep_package: bool, yes: bool) -> None:
+    """프로그램과 생성 데이터를 모두 제거합니다 (install 의 반대).
+
+    \b
+    - 생성물 + 설정 + API키 정리 (clean --all 과 동일)
+    - 이어서 pip uninstall learninglog-kit 실행
+    - 00_inbox 원본 노트는 보존
+    """
+    import subprocess, sys
+    from pathlib import Path
+    from .clean import run_clean
+
+    console.print("\n[bold]learninglog uninstall[/] — 프로그램 + 데이터 제거")
+    run_clean(Path.cwd(), outputs=True, config=True,
+              registry=True, api_key=True, yes=yes)
+
+    if keep_package:
+        console.print("  [dim]--keep-package: pip 패키지는 유지합니다.[/]")
+        return
+
+    console.print()
+    if not yes:
+        from rich.prompt import Confirm
+        if not Confirm.ask("  pip 패키지(learninglog-kit)도 제거할까요?", default=False):
+            console.print("  패키지는 유지합니다. 직접 제거: pip uninstall learninglog-kit")
+            return
+
+    console.print("  pip uninstall 실행 중...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "learninglog-kit"],
+                       check=False)
+        console.print("  [green]제거 완료. 그동안 이용해주셔서 감사합니다![/]")
+    except Exception as e:
+        console.print(f"  [yellow]자동 제거 실패: {e}[/]")
+        console.print("  수동 제거: pip uninstall learninglog-kit")
+
+
 # ─── status ────────────────────────────────────────────────
 @main.command()
 def status() -> None:
