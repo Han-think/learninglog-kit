@@ -128,6 +128,30 @@ def publish(source_id: str) -> None:
     run_publish(cfg, source_id=source_id)
 
 
+# ─── clean ─────────────────────────────────────────────────
+@main.command()
+@click.option("--outputs", is_flag=True, help="생성물(02~06, 09_reports) 삭제")
+@click.option("--registry", is_flag=True, help="01_registry 상태장부 삭제")
+@click.option("--config", "config_", is_flag=True, help=".learninglog/config.yaml 삭제")
+@click.option("--api-key", is_flag=True, help="~/.bashrc 의 API 키 줄 제거")
+@click.option("--all", "all_", is_flag=True, help="위 전부 (00_inbox 원본은 제외)")
+@click.option("--yes", "-y", is_flag=True, help="확인 없이 삭제")
+def clean(outputs: bool, registry: bool, config_: bool, api_key: bool, all_: bool, yes: bool) -> None:
+    """생성물·설정·API키를 정리합니다. (00_inbox 원본 노트는 보존)
+
+    \b
+    learninglog clean              # 생성물만 (기본)
+    learninglog clean --config     # 설정도 삭제
+    learninglog clean --all -y      # 전부 삭제 (확인 생략)
+    """
+    from pathlib import Path
+    from .clean import run_clean
+    if all_:
+        outputs = registry = config_ = api_key = True
+    run_clean(Path.cwd(), outputs=outputs, config=config_,
+              registry=registry, api_key=api_key, yes=yes)
+
+
 # ─── status ────────────────────────────────────────────────
 @main.command()
 def status() -> None:

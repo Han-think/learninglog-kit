@@ -101,6 +101,20 @@ learninglog publish    # 블로그로 발행 (blog 설정 시)
 | `learninglog publish` | 초안을 블로그로 발행 (draft:false + ai_assisted 마킹 + hugo 빌드 + git push) |
 | `learninglog status` | 전체 현황 요약 |
 | `learninglog doctor` | 설정 및 LLM 연결 진단 |
+| `learninglog clean` | 생성물·설정·API키 정리 (00_inbox 원본은 보존) |
+
+### 삭제 / 정리 (clean)
+
+```bash
+learninglog clean             # 생성물만 삭제 (02~06, 09_reports)
+learninglog clean --config    # 설정(.learninglog)도 삭제
+learninglog clean --api-key   # ~/.bashrc 의 API 키 줄 제거
+learninglog clean --all -y    # 전부 삭제 (확인 생략)
+
+pip uninstall learninglog-kit # 패키지 자체 제거
+```
+
+> `00_inbox/` 의 원본 노트는 **절대 자동 삭제되지 않습니다**. 직접 지우세요.
 
 ### 블로그 발행 설정
 
