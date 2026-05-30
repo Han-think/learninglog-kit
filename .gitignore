@@ -31,3 +31,8 @@ tests/fixtures/
 
 # pip 설치 잔여물
 *.dist-info/
+
+# 개인 작업 공간 (테스트용 — 배포 제외)
+workspace/
+*_with_key.bat
+test_my_gemini.py

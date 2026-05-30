@@ -9,8 +9,6 @@
 의존성: pip install "learninglog-kit[web]"  (fastapi, uvicorn)
 """
 
-from __future__ import annotations
-
 import csv
 import os
 import subprocess
@@ -29,8 +27,8 @@ PROVIDERS = {
     "gemini": {
         "name": "Gemini (Google) — 무료 추천",
         "url": "https://aistudio.google.com/app/apikey",
-        "hint": "구글 계정으로 로그인 → Create API key → AIzaSy... 복사",
-        "needs_key": True, "default_model": "gemini-1.5-flash",
+        "hint": "구글 계정으로 로그인 → Create API key → 키 복사 (AIza... 또는 AQ... 둘 다 지원)",
+        "needs_key": True, "default_model": "gemini-2.5-flash",
     },
     "groq": {
         "name": "Groq — 무료 (초고속)",
@@ -71,10 +69,18 @@ def _html() -> str:
   .prov .pn { font-weight:600; font-size:.9rem; }
   .prov .pu { color:var(--mut); font-size:.75rem; margin-top:.2rem; word-break:break-all; }
   button.act { background:var(--acc); color:#1a1713; border:none; border-radius:8px;
-    padding:.7rem 1.1rem; font-weight:700; cursor:pointer; font-size:.95rem; }
-  button.act:disabled { opacity:.5; cursor:default; }
-  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line);
-    border-radius:8px; padding:.6rem 1rem; cursor:pointer; }
+    padding:.7rem 1.1rem; font-weight:700; cursor:pointer; font-size:.95rem;
+    transition:transform .06s ease, filter .12s ease, box-shadow .12s ease;
+    box-shadow:0 2px 0 #8a6c2e; }
+  button.act:hover { filter:brightness(1.08); }
+  button.act:active { transform:translateY(2px); box-shadow:0 0 0 #8a6c2e; }
+  button.act:disabled { opacity:.5; cursor:default; box-shadow:none; transform:none; }
+  button.ghost { background:var(--card); color:var(--fg); border:1px solid var(--line);
+    border-radius:8px; padding:.6rem 1rem; cursor:pointer; font-weight:600;
+    transition:transform .06s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+    box-shadow:0 2px 0 #14110d; }
+  button.ghost:hover { background:#2d2718; border-color:var(--acc); color:var(--acc); }
+  button.ghost:active { transform:translateY(2px); box-shadow:0 0 0 #14110d; background:#3a3220; }
   .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin-top:.8rem; }
   .hint { font-size:.82rem; color:var(--mut); margin-top:.4rem; }
   .hint a { color:var(--acc); }
@@ -103,7 +109,7 @@ def _html() -> str:
     <div class="prov" id="provs"></div>
     <div id="keybox">
       <label>API 키 붙여넣기</label>
-      <input id="apikey" type="password" placeholder="여기에 키 붙여넣기" autocomplete="off">
+      <input id="apikey" type="password" placeholder="여기에 API 키 붙여넣기" autocomplete="off">
       <div class="hint" id="keyhint"></div>
     </div>
     <div class="row">
@@ -116,9 +122,9 @@ def _html() -> str:
   <div class="card">
     <div class="stat" id="stat"><div><div class="n">–</div><div class="l">전체</div></div></div>
     <div class="row">
-      <button class="ghost" onclick="run('intake')">① intake 등록</button>
-      <button class="ghost" onclick="run('extract')">② extract 처리</button>
-      <button class="ghost" onclick="run('publish')">③ publish 발행</button>
+      <button class="ghost" onclick="run('intake', this)">① intake 등록</button>
+      <button class="ghost" onclick="run('extract', this)">② extract 처리</button>
+      <button class="ghost" onclick="run('publish', this)">③ publish 발행</button>
       <button class="ghost" onclick="loadStatus()">↻ 새로고침</button>
     </div>
     <div class="row"><pre id="out">대기 중...</pre></div>
@@ -137,7 +143,7 @@ async function boot() {
   const pe = document.getElementById('provs'); pe.innerHTML = '';
   for (const [k,v] of Object.entries(provData)) {
     const b = document.createElement('button');
-    b.className = 'prov-b' + (k===provider?' on':'');
+    b.className = (k===provider ? 'on' : '');
     b.dataset.k = k;
     b.innerHTML = `<div class="pn">${v.name}</div><div class="pu">${v.url}</div>`;
     b.onclick = ()=>{ provider=k; document.querySelectorAll('#provs button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderKey(); };
@@ -166,10 +172,21 @@ async function saveCfg() {
   document.getElementById('savestat').innerHTML = d.ok
     ? '<span class="ok">✓ '+d.msg+'</span>' : '<span class="err">✗ '+d.msg+'</span>';
 }
-async function run(step) {
+async function run(step, btn) {
+  const all = document.querySelectorAll('#stat ~ .row button, .card .row button.ghost');
+  all.forEach(b=>b.disabled = true);
+  let label;
+  if (btn) { label = btn.textContent; btn.textContent = '⏳ '+step+' 실행 중...'; btn.style.opacity = .7; }
   setOut('▶ '+step+' 실행 중... (모델 로딩에 시간이 걸릴 수 있음)');
-  const r = await fetch('/api/run/'+step, {method:'POST'}); const d = await r.json();
-  setOut(d.output); loadStatus();
+  try {
+    const r = await fetch('/api/run/'+step, {method:'POST'}); const d = await r.json();
+    setOut(d.output); loadStatus();
+  } catch (e) {
+    setOut('✗ 실행 실패: '+e);
+  } finally {
+    all.forEach(b=>b.disabled = false);
+    if (btn) { btn.textContent = label; btn.style.opacity = 1; }
+  }
 }
 async function loadStatus() {
   const r = await fetch('/api/status'); const d = await r.json();
@@ -218,25 +235,37 @@ def create_app(project_dir: Path):
 
     @app.post("/api/setup")
     async def api_setup(request: Request):
+        ENV_NAMES = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY",
+                     "claude": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
         body = await request.json()
         prov = body.get("provider", "gemini")
-        key  = (body.get("api_key") or "").strip()
+        typed = (body.get("api_key") or "").strip()
         info = PROVIDERS.get(prov, {})
+
+        # 입력칸 비었으면 환경변수 키(GEMINI_API_KEY 등)를 자동 사용
+        env_key  = os.environ.get(ENV_NAMES.get(prov, ""), "")
+        from_env = (not typed) and bool(env_key)
+        test_key = typed or env_key
 
         # config.yaml 보장
         if not _cfg_path().exists():
             _run_cmd(["init", str(project_dir)], skip_wizard=True)
 
+        # 키 검사 (입력도 환경변수도 없으면 안내)
+        if info.get("needs_key") and not test_key:
+            return JSONResponse({"ok": False, "msg": "API 키를 입력하세요."})
+
+        ok, msg, picked = _test(prov, test_key, info.get("default_model", ""))
+
+        # config 저장: 입력한 키만 저장(환경변수 키는 저장 안 함 → 런타임에 환경변수 사용)
         from .setup_wizard import _update_config
         extra = {"host": "http://127.0.0.1:11434", "num_ctx": 4096} if prov == "ollama" else None
-        _update_config(_cfg_path(), prov,
-                       api_key=(key if info.get("needs_key") else None),
-                       model=info.get("default_model", ""), extra=extra)
+        save_key = None if not info.get("needs_key") else (typed if typed else "")
+        _update_config(_cfg_path(), prov, api_key=save_key,
+                       model=(picked or info.get("default_model", "")), extra=extra)
 
-        # 연결 테스트
-        if info.get("needs_key") and not key:
-            return JSONResponse({"ok": False, "msg": "API 키를 입력하세요"})
-        ok, msg = _test(prov, key, info.get("default_model", ""))
+        if ok and from_env:
+            msg += "  (환경변수 키 사용)"
         return JSONResponse({"ok": ok, "msg": msg})
 
     @app.get("/api/status")
@@ -265,23 +294,38 @@ def create_app(project_dir: Path):
 
 
 def _test(provider: str, key: str, model: str):
+    """반환: (성공여부, 메시지, 자동선택모델). 모델은 gemini/groq 만 채워질 수 있음."""
     try:
         if provider == "gemini":
-            import google.generativeai as genai
-            genai.configure(api_key=key)
-            genai.GenerativeModel(model).generate_content("hi")
+            from google import genai
+            client = genai.Client(api_key=key) if key else genai.Client()
+            mdl = model or "gemini-2.5-flash"
+            # 실제 생성 호출로 키 검증 (새 SDK, AQ. 키 지원)
+            client.models.generate_content(model=mdl, contents="hi")
+            return True, f"연결 성공 — 모델: {mdl}", mdl
+
         elif provider == "groq":
             from groq import Groq
-            Groq(api_key=key).chat.completions.create(
-                model=model, messages=[{"role": "user", "content": "hi"}], max_tokens=5)
+            client = Groq(api_key=key)
+            models = [m.id for m in client.models.list().data]
+            if not models:
+                return False, "사용 가능한 모델이 없습니다.", ""
+            pick = next((m for m in models if "llama" in m and "instant" in m), None) or models[0]
+            return True, f"연결 성공 — 모델: {pick}", pick
+
         elif provider == "ollama":
             import httpx
             httpx.get("http://127.0.0.1:11434/", timeout=3)
-        return True, "연결 성공 — 설정 완료"
+            return True, "Ollama 연결 성공", ""
+
+        return False, "알 수 없는 provider", ""
     except ImportError:
-        return False, f'라이브러리 미설치: pip install "learninglog-kit[{provider}]"'
+        return False, f'라이브러리 미설치: pip install "learninglog-kit[{provider}]"', ""
     except Exception as e:
-        return False, f"연결 실패: {str(e)[:120]}"
+        msg = str(e)
+        if "API_KEY_INVALID" in msg or "API key not valid" in msg or "401" in msg or "403" in msg or "PERMISSION" in msg:
+            return False, "API 키가 올바르지 않습니다. AI Studio 키를 다시 확인하세요.", ""
+        return False, f"연결 실패: {msg[:140]}", ""
 
 
 def _status(project_dir: Path) -> dict:

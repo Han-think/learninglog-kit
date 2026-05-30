@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "learninglog-kit"
-version = "0.3.2"
+version = "0.4.0"
 description = "Personal learning pipeline — intake, extract, publish with any LLM"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,13 +19,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gemini  = ["google-generativeai>=0.8"]
+gemini  = ["google-genai>=1.0"]
 groq    = ["groq>=0.9"]
 claude  = ["anthropic>=0.30"]
 openai  = ["openai>=1.0"]
 web     = ["fastapi>=0.100", "uvicorn>=0.20", "jinja2>=3.0"]
 all     = [
-    "google-generativeai>=0.8",
+    "google-genai>=1.0",
     "groq>=0.9",
     "anthropic>=0.30",
     "openai>=1.0",

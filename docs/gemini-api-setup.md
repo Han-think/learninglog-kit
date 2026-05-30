@@ -74,7 +74,7 @@ llm:
   provider: "gemini"        # "none" 에서 "gemini" 로 변경
   gemini:
     api_key: ""             # 환경변수 사용 시 비워두세요
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 환경변수 설정이 어렵다면 api_key 에 직접 입력해도 됩니다.
@@ -189,7 +189,7 @@ llm:
   provider: "gemini"
   gemini:
     api_key: ""             # Leave empty — reads from environment variable
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 ---

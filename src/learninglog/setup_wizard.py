@@ -42,7 +42,7 @@ PROVIDER_INFO = {
             "4. Copy the key (starts with AIzaSy...)",
         ],
         "env_var":  "GEMINI_API_KEY",
-        "model":    "gemini-1.5-flash",
+        "model":    "gemini-2.5-flash",
         "key_hint": "AIzaSy",
     },
     "groq": {
@@ -266,9 +266,9 @@ def _test_connection(provider: str, api_key: str, model: str) -> None:
     console.print("  연결 테스트 중 / Testing...", end=" ")
     try:
         if provider == "gemini":
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            genai.GenerativeModel(model).generate_content("hi")
+            from google import genai
+            client = genai.Client(api_key=api_key) if api_key else genai.Client()
+            client.models.generate_content(model=(model or "gemini-2.5-flash"), contents="hi")
         elif provider == "groq":
             from groq import Groq
             Groq(api_key=api_key).chat.completions.create(

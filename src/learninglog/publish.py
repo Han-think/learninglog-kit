@@ -97,7 +97,8 @@ def run_publish(cfg: dict[str, Any], source_id: str = "", yes: bool = False) -> 
         console.print("\n  Hugo 빌드 중...", end=" ")
         try:
             r = subprocess.run(["hugo", "--logLevel", "warn"],
-                               cwd=blog_root, capture_output=True, text=True, timeout=120)
+                               cwd=blog_root, capture_output=True, text=True, timeout=120,
+                               encoding="utf-8", errors="replace")
             if r.returncode == 0:
                 console.print("[green]OK[/]")
             else:
@@ -165,7 +166,25 @@ def _process_front_matter(content: str, model: str = "local-llm") -> tuple[str, 
     if not has_ai:
         fm.append("ai_assisted: true")
 
-    result = "---\n" + "\n".join(fm) + "\n---\n" + "\n".join(body)
+    # 본문에 LLM 이 실수로 남긴 내부 추적 메타 줄 제거 (공개 금지)
+    # source_id / note_date / model / mode 와, 그 메타를 감싼 꼬리 '---' 구분선까지 정리
+    INTERNAL_KEYS = ("source_id:", "note_date:", "model:", "mode:")
+    clean_body = []
+    for ln in body:
+        s = ln.strip()
+        if s.startswith("source_id:"):
+            if not sid and "SRC-" in s:
+                sid = s.split(":", 1)[1].strip()
+            continue
+        if any(s.startswith(k) for k in INTERNAL_KEYS):
+            continue
+        clean_body.append(ln)
+
+    # 메타 제거 후 꼬리에 남은 빈 '---' 구분선/공백 줄 정리
+    while clean_body and clean_body[-1].strip() in ("", "---"):
+        clean_body.pop()
+
+    result = "---\n" + "\n".join(fm) + "\n---\n" + "\n".join(clean_body) + "\n"
     return result, sid
 
 

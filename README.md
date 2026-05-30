@@ -65,7 +65,7 @@ llm:
   provider: "gemini"      # 구글 계정만 있으면 무료
   gemini:
     api_key: "AIza..."    # aistudio.google.com 에서 발급
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 → 자세한 설정 방법: [docs/llm-providers.md](docs/llm-providers.md)
@@ -215,7 +215,7 @@ llm:
   provider: "gemini"
   gemini:
     api_key: "AIza..."    # Get free key at aistudio.google.com
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 See [docs/llm-providers.md](docs/llm-providers.md) for all options.

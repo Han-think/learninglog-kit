@@ -77,7 +77,7 @@ llm:
   provider: "gemini"          # "none" → "gemini" 로 변경
   gemini:
     api_key: "AIza..."        # 발급받은 키 입력
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 ---
@@ -224,7 +224,7 @@ llm:
   provider: "gemini"
   gemini:
     api_key: "AIza..."
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
 ```
 
 ---

@@ -30,7 +30,7 @@ def create_adapter(cfg: dict[str, Any]) -> LLMAdapter:
         from .gemini import GeminiAdapter
         c       = cfg.get("llm", {}).get("gemini", {})
         api_key = c.get("api_key") or os.environ.get("GEMINI_API_KEY", "")
-        return GeminiAdapter(api_key=api_key, model=c.get("model", "gemini-1.5-flash"))
+        return GeminiAdapter(api_key=api_key, model=c.get("model", "gemini-2.5-flash"))
 
     elif provider == "groq":
         from .groq_adapter import GroqAdapter

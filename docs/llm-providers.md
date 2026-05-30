@@ -39,7 +39,7 @@
      provider: "gemini"
      gemini:
        api_key: "AIza..."
-       model: "gemini-1.5-flash"
+       model: "gemini-2.5-flash"
    ```
 
 **또는 환경변수로 키 관리 (보안 권장):**
@@ -172,7 +172,7 @@ More than enough.
      provider: "gemini"
      gemini:
        api_key: "AIza..."
-       model: "gemini-1.5-flash"
+       model: "gemini-2.5-flash"
    ```
 
 **Using environment variables (recommended for security):**

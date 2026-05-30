@@ -40,7 +40,7 @@ llm:
 
   gemini:
     api_key: ""             # 또는 환경변수 GEMINI_API_KEY
-    model:   "gemini-1.5-flash"
+    model:   "gemini-2.5-flash"
 
   groq:
     api_key: ""             # 또는 환경변수 GROQ_API_KEY
