@@ -11,6 +11,7 @@ from rich.console import Console
 
 from .config import resolve_path
 from .adapters.base import LLMAdapter
+from .chunker import generate_chunked, DEFAULT_MAX_CHARS
 
 console = Console()
 
@@ -41,6 +42,7 @@ def run_extract(
     adapter: LLMAdapter,
     source_id: str = "",
     skip_llm: bool = False,
+    max_chars: int = DEFAULT_MAX_CHARS,
 ) -> None:
     root       = resolve_path(cfg, "registry", "01_registry/source_registry.csv").parent.parent
     registry   = resolve_path(cfg, "registry", "01_registry/source_registry.csv")
@@ -70,6 +72,19 @@ def run_extract(
         console.print("[yellow]처리할 소스 없음.[/]")
         return
 
+    # 청크 크기 결정
+    if max_chars == DEFAULT_MAX_CHARS:
+        if adapter.provider_name == "ollama":
+            # Ollama: num_ctx 기반으로 계산
+            from .adapters.ollama import OllamaAdapter
+            if isinstance(adapter, OllamaAdapter):
+                max_chars = adapter.safe_max_chars()
+                console.print(f"  Ollama 컨텍스트: {adapter.num_ctx}토큰 → 청크: [cyan]{max_chars}[/] 자/파트")
+        else:
+            # 클라우드 API (Gemini/Groq/Claude/OpenAI): 컨텍스트 충분 → 청킹 불필요
+            max_chars = 50000
+            console.print(f"  클라우드 API ({adapter.provider_name}) → 청킹 없음 (최대 {max_chars}자)")
+
     console.print(f"\n  대상: [cyan]{len(targets)}[/] 개  |  LLM: [cyan]{adapter.provider_name}[/]\n")
 
     for row in targets:
@@ -96,7 +111,9 @@ def run_extract(
         else:
             console.print(f"    MODE 2 extract   [{adapter.provider_name}] ", end="")
             try:
-                result = adapter.generate(PROMPTS["extract"].format(body=body))
+                instruction = PROMPTS["extract"].replace("\n---\n{body}", "")
+                result = generate_chunked(adapter, instruction, body,
+                                          max_chars=max_chars, verbose=False)
                 fm = f"---\nsource_id: {sid}\nextract_date: {today}\nmodel: {adapter.provider_name}\n---\n\n"
                 ext_path.write_text(fm + result, encoding="utf-8")
                 _update_status(registry, sid, "extracted")
@@ -112,7 +129,9 @@ def run_extract(
         else:
             console.print(f"    MODE 3 working   [{adapter.provider_name}] ", end="")
             try:
-                result = adapter.generate(PROMPTS["working_note"].format(body=body))
+                instruction = PROMPTS["working_note"].replace("\n---\n{body}", "")
+                result = generate_chunked(adapter, instruction, body,
+                                          max_chars=max_chars, verbose=False)
                 fm = f"---\nsource_id: {sid}\nnote_date: {today}\nmodel: {adapter.provider_name}\n---\n\n"
                 wk_path.write_text(fm + result, encoding="utf-8")
                 _update_status(registry, sid, "working")

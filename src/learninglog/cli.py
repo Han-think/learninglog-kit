@@ -68,7 +68,9 @@ def queue() -> None:
 @main.command()
 @click.option("--source-id", "-s", default="", help="특정 소스만 처리")
 @click.option("--skip-llm", is_flag=True, help="LLM 없이 패킷 조립만")
-def extract(source_id: str, skip_llm: bool) -> None:
+@click.option("--max-chars", default=1500, show_default=True,
+              help="청크당 최대 문자 수. 모델 컨텍스트에 맞게 조정 (2048토큰=1500 / 4096토큰=3000)")
+def extract(source_id: str, skip_llm: bool, max_chars: int) -> None:
     """소스를 LLM 으로 처리해 extract + working_note 를 생성합니다.
 
     \b
@@ -88,7 +90,8 @@ def extract(source_id: str, skip_llm: bool) -> None:
         raise SystemExit(1)
 
     from .extract import run_extract
-    run_extract(cfg, adapter=adapter, source_id=source_id, skip_llm=skip_llm)
+    run_extract(cfg, adapter=adapter, source_id=source_id,
+                skip_llm=skip_llm, max_chars=max_chars)
 
 
 # ─── status ────────────────────────────────────────────────

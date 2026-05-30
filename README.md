@@ -1,65 +1,206 @@
 # learninglog-kit
 
-개인 학습 파이프라인 도구. 노트를 올리면 LLM 이 처리해 블로그 초안까지 만들어줍니다.
+**한국어** | [English](#english-guide)
 
-## 빠른 시작
+개인 학습 노트를 자동으로 정리해주는 파이프라인 도구.
+노트를 폴더에 넣으면 LLM이 핵심 추출 → 워킹 노트 → 블로그 초안까지 만들어줍니다.
+
+---
+
+## 빠른 시작 (한국어)
+
+### 1. 설치
 
 ```bash
-# 1. 설치
+# 기본 설치 (Ollama 로컬 모델용)
 pip install learninglog-kit
 
-# 2. 프로젝트 초기화
-mkdir my-learning && cd my-learning
-learninglog init
+# Gemini 무료 API 사용 시
+pip install "learninglog-kit[gemini]"
 
-# 3. LLM 설정 (무료 옵션)
-#    config.yaml 에서 llm.provider 를 gemini 또는 groq 으로 변경
-code .learninglog/config.yaml
+# Groq 무료 API 사용 시
+pip install "learninglog-kit[groq]"
 
-# 4. 파일 넣기
-#    00_inbox/personal_notes/ 에 .md 파일 추가
-
-# 5. 실행
-learninglog intake    # 파일 등록
-learninglog queue     # 처리 순서 확인
-learninglog extract   # LLM 처리
+# 전체 설치
+pip install "learninglog-kit[all]"
 ```
 
-## 명령어
+### 2. 프로젝트 초기화
+
+```bash
+mkdir my-learning
+cd my-learning
+learninglog init
+```
+
+### 3. LLM 설정
+
+`.learninglog/config.yaml` 파일을 열어 LLM을 선택합니다.
+
+```bash
+code .learninglog/config.yaml   # VS Code로 열기
+```
+
+**무료 옵션 (추천):**
+
+```yaml
+llm:
+  provider: "gemini"      # 구글 계정만 있으면 무료
+  gemini:
+    api_key: "AIza..."    # aistudio.google.com 에서 발급
+    model: "gemini-1.5-flash"
+```
+
+→ 자세한 설정 방법: [docs/llm-providers.md](docs/llm-providers.md)
+
+### 4. 노트 넣기
+
+```
+my-learning/
+└── 00_inbox/
+    └── personal_notes/    ← 여기에 .md 파일을 넣으세요
+```
+
+### 5. 실행
+
+```bash
+learninglog intake     # 새 파일 감지 및 등록
+learninglog queue      # 처리 순서 확인
+learninglog extract    # LLM으로 노트 생성
+```
+
+---
+
+## 명령어 목록
 
 | 명령어 | 설명 |
 |-------|------|
-| `learninglog init` | 프로젝트 폴더 구조 생성 |
+| `learninglog init [폴더]` | 프로젝트 폴더 구조 생성 |
 | `learninglog intake` | 새 파일 자동 등록 |
 | `learninglog queue` | 처리 대기 목록 확인 |
-| `learninglog extract` | LLM 으로 extract + working_note 생성 |
+| `learninglog extract` | LLM으로 extract + working_note 생성 |
 | `learninglog status` | 전체 현황 요약 |
 | `learninglog doctor` | 설정 및 LLM 연결 진단 |
 
-## LLM 선택
+---
 
-무료로 사용 가능한 옵션이 있습니다. → [docs/llm-providers.md](docs/llm-providers.md)
+## LLM 선택 가이드
 
-| Provider | 비용 | 설치 |
-|----------|------|------|
-| Gemini | 무료 티어 | `pip install learninglog-kit[gemini]` |
-| Groq | 무료 티어 | `pip install learninglog-kit[groq]` |
-| Ollama | 완전 무료 | 로컬 앱 설치 |
-| Claude | 유료 | `pip install learninglog-kit[claude]` |
-| OpenAI | 유료 | `pip install learninglog-kit[openai]` |
+| 옵션 | 비용 | 설치 난이도 | 속도 | 프라이버시 |
+|------|------|------------|------|-----------|
+| **Gemini** | 무료 (일 1,500회) | 쉬움 | 빠름 | 클라우드 |
+| **Groq** | 무료 (일 14,400회) | 쉬움 | 매우 빠름 | 클라우드 |
+| **Ollama** | 완전 무료 | 앱 설치 필요 | 로컬 속도 | 로컬 (최고) |
+| **Claude** | 유료 | 쉬움 | 빠름 | 클라우드 |
+| **OpenAI** | 유료 | 쉬움 | 빠름 | 클라우드 |
 
-## 파이프라인
+→ [docs/llm-providers.md](docs/llm-providers.md) 에서 단계별 설정 방법 확인
+
+---
+
+## 파이프라인 구조
 
 ```
-00_inbox/  →  intake  →  queue  →  extract  →  03_working_notes/
-                                                      ↓
-                                              (검토 후) 04_blog_drafts/
-                                                      ↓
-                                              (승인 후) blog-source/
+00_inbox/  →  intake  →  queue  →  extract
+                                      ↓
+                              02_extracted/       (사실 추출)
+                              03_working_notes/   (워킹 노트)
+                                      ↓
+                              (검토 후) 04_blog_drafts/
+                                      ↓
+                              (승인 후) blog-source/
 ```
 
-## 요구사항
+---
+
+---
+
+# English Guide
+
+A personal learning pipeline tool.
+Drop your notes into a folder — LLM extracts key facts, creates working notes, and drafts blog posts.
+
+## Quick Start
+
+### 1. Install
+
+```bash
+# Basic install (for Ollama local models)
+pip install learninglog-kit
+
+# With Gemini free API
+pip install "learninglog-kit[gemini]"
+
+# With Groq free API
+pip install "learninglog-kit[groq]"
+
+# Everything
+pip install "learninglog-kit[all]"
+```
+
+### 2. Initialize Project
+
+```bash
+mkdir my-learning
+cd my-learning
+learninglog init
+```
+
+### 3. Configure LLM
+
+Open `.learninglog/config.yaml` and choose your LLM provider.
+
+**Free option (recommended for beginners):**
+
+```yaml
+llm:
+  provider: "gemini"
+  gemini:
+    api_key: "AIza..."    # Get free key at aistudio.google.com
+    model: "gemini-1.5-flash"
+```
+
+See [docs/llm-providers.md](docs/llm-providers.md) for all options.
+
+### 4. Add Your Notes
+
+```
+my-learning/
+└── 00_inbox/
+    └── personal_notes/    ← Put your .md files here
+```
+
+### 5. Run
+
+```bash
+learninglog intake     # Detect and register new files
+learninglog queue      # See processing priority
+learninglog extract    # Generate notes with LLM
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `learninglog init [path]` | Create project folder structure |
+| `learninglog intake` | Auto-register new files |
+| `learninglog queue` | View processing queue |
+| `learninglog extract` | Run LLM: extract facts + working notes |
+| `learninglog status` | Show pipeline summary |
+| `learninglog doctor` | Diagnose config and LLM connection |
+
+## LLM Options
+
+| Option | Cost | Setup | Speed | Privacy |
+|--------|------|-------|-------|---------|
+| **Gemini** | Free (1,500/day) | Easy | Fast | Cloud |
+| **Groq** | Free (14,400/day) | Easy | Very fast | Cloud |
+| **Ollama** | Free forever | App install | Local speed | Local (best) |
+| **Claude** | Paid | Easy | Fast | Cloud |
+| **OpenAI** | Paid | Easy | Fast | Cloud |
+
+## Requirements
 
 - Python 3.10+
-- Git Bash 또는 터미널
-- LLM: 위 표에서 하나 선택
+- Git Bash or any terminal
+- One LLM option configured (see table above)
