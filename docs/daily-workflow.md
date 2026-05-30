@@ -19,8 +19,7 @@
 00_inbox/personal_notes/
 │
 ├── PN_2026-05-30_01_python-basics.md        ← 오전 강의
-├── PN_2026-05-30_02_web-server-http.md      ← 오후 강의
-└── PN_2026-05-30_03_git-github-review.md    ← 저녁 복습
+└── PN_2026-05-30_02_web-server-http.md      ← 오후 강의
 ```
 
 **파일명 규칙:**
@@ -99,15 +98,19 @@ personal_notes/ 에 노트로 작성
 ### 하루 흐름 예시
 
 ```
-오전 9시  수업 → 점심에 Gemini에게 요청 → PN_01_주제.md 생성
-오후 1시  수업 → 수업 후 바로 요청     → PN_02_주제.md 생성
-오후 5시  실습 → 저녁에 요청           → PN_03_실습.md 생성
+오전 수업 종료 → Gemini/ChatGPT에 요청 → PN_01_주제.md 저장
+오후 수업 종료 → Gemini/ChatGPT에 요청 → PN_02_주제.md 저장
 
-저녁:
-learninglog intake   → 3개 파일 자동 등록
+수업 끝난 후:
+learninglog intake   → 2개 파일 자동 등록
 learninglog extract  → 노트 처리 + draft 생성
-→ 블로그에 오늘 학습 3편 자동 발행
+→ 블로그에 오늘 학습 2편 자동 발행
 ```
+
+> **저녁 복습은 권장하지 않습니다.**
+> 복습 내용은 다음 날 수업과 맥락이 섞일 수 있고,
+> 명확한 출처가 없는 내용은 정리 품질이 떨어질 수 있습니다.
+> 수업 직후 정리한 노트가 가장 정확하고 품질이 좋습니다.
 
 ---
 
@@ -142,8 +145,7 @@ Putting all day's learning into one file causes LLM context issues.
 00_inbox/personal_notes/
 │
 ├── PN_2026-05-30_01_python-basics.md        ← Morning class
-├── PN_2026-05-30_02_web-server-http.md      ← Afternoon class
-└── PN_2026-05-30_03_git-github-review.md    ← Evening review
+└── PN_2026-05-30_02_web-server-http.md      ← Afternoon class
 ```
 
 **Naming rule:**
@@ -222,15 +224,19 @@ That note becomes a blog post
 ### Example Daily Flow
 
 ```
-9 AM  class → ask Gemini at lunch  → PN_01_topic.md
-1 PM  class → ask right after      → PN_02_topic.md
-5 PM  lab   → ask in the evening   → PN_03_lab.md
+Morning class ends → ask Gemini/ChatGPT → save PN_01_topic.md
+Afternoon class ends → ask Gemini/ChatGPT → save PN_02_topic.md
 
-Evening:
-learninglog intake   → auto-register 3 files
+After classes:
+learninglog intake   → auto-register 2 files
 learninglog extract  → process notes + generate drafts
-→ 3 blog posts from today's learning auto-published
+→ 2 blog posts from today's learning auto-published
 ```
+
+> **Evening review is not recommended.**
+> Review notes can mix context with the next day's classes,
+> and content without a clear source tends to be lower quality.
+> Notes written right after class are the most accurate.
 
 ---
 
