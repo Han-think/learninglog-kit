@@ -45,6 +45,24 @@ def init(path: str) -> None:
     init_project(Path(path).resolve())
 
 
+# ─── ui ────────────────────────────────────────────────────
+@main.command()
+@click.option("--port", default=8765, show_default=True, help="웹 UI 포트")
+@click.option("--no-browser", is_flag=True, help="브라우저 자동 열기 안 함")
+def ui(port: int, no_browser: bool) -> None:
+    """브라우저 설정/실행 UI 를 엽니다 (설치·API키·실행을 버튼으로).
+
+    \b
+    pip install "learninglog-kit[web]" 필요.
+    learninglog ui  →  http://127.0.0.1:8765
+    """
+    from .webui import run_ui
+    if no_browser:
+        import learninglog.webui as w
+        w.webbrowser = type("X", (), {"open": staticmethod(lambda *a: None)})()
+    run_ui(port=port)
+
+
 # ─── intake ────────────────────────────────────────────────
 @main.command()
 @click.option("--dry-run", is_flag=True, help="실제 등록 없이 미리보기만")

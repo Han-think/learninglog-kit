@@ -79,6 +79,11 @@ def init_project(target: Path) -> None:
     console.print(f"  설정 파일: [cyan]{config_dest}[/]")
     console.print()
 
+    # 웹 UI 등에서 폴더만 생성할 때는 마법사 건너뜀
+    import os
+    if os.environ.get("LEARNINGLOG_NO_WIZARD") == "1":
+        return
+
     # 대화형 설정 마법사 실행
     from .setup_wizard import run_wizard
     run_wizard(config_dest)

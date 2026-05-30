@@ -7,7 +7,24 @@
 
 ---
 
-## 빠른 시작 (한국어)
+## 가장 쉬운 시작 — 웹 UI (추천)
+
+```bash
+pip install "learninglog-kit[web,gemini]"
+learninglog ui
+```
+
+브라우저(`http://127.0.0.1:8765`)가 열리면:
+1. **작업 폴더 생성** 버튼 클릭
+2. **Gemini** 선택 → [API 키 발급](https://aistudio.google.com/app/apikey) → 키 붙여넣기 → 저장+테스트
+3. `00_inbox/personal_notes/` 에 노트(.md) 넣기
+4. **① intake → ② extract → ③ publish** 버튼 클릭
+
+설치·설정·실행을 전부 버튼으로. 터미널 명령 몰라도 됩니다.
+
+---
+
+## 빠른 시작 — 터미널 (한국어)
 
 ### 1. 설치
 
@@ -76,6 +93,7 @@ learninglog publish    # 블로그로 발행 (blog 설정 시)
 
 | 명령어 | 설명 |
 |-------|------|
+| `learninglog ui` | **브라우저 설정/실행 UI** (설치·API키·실행을 버튼으로) |
 | `learninglog init [폴더]` | 프로젝트 폴더 구조 생성 + LLM 설정 마법사 |
 | `learninglog intake` | 새 파일 자동 등록 |
 | `learninglog queue` | 처리 대기 목록 확인 |
