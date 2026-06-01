@@ -36,6 +36,70 @@ INTERNAL_META_KEYS = (
 )
 
 
+# 이 길이 이하 노트는 분할하지 않고 한 편으로 처리
+SPLIT_MIN_CHARS = 1200
+
+# 오후/후반부 시작을 알리는 헤더 마커 (라인 시작 # 헤더에서만 인식)
+_AFTERNOON_MARKER = re.compile(
+    r"^#{1,3}\s*(오후|점심|afternoon|pm)\b", re.IGNORECASE
+)
+
+
+def _split_paragraphs(text: str) -> list[str]:
+    """빈 줄 기준 단락 분리 (split_into_chunks 와 동일 규칙)."""
+    return [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+
+
+def split_into_halves(text: str, min_chars: int = SPLIT_MIN_CHARS) -> list[str]:
+    """노트 본문을 단락 경계 기준 2묶음(오전/오후)으로 분할.
+
+    요약/압축이 아니라 원문을 그대로 두 묶음으로 나눈다 → 내용 손실 없음.
+    - min_chars 이하: 분할 안 함 (1편)
+    - 본문에 명시적 '오후/afternoon' 헤더가 있으면 그 경계로 분리
+    - 없으면 단락 누적 길이의 절반 지점에서 분리
+    - 단락이 1개뿐이라 경계가 없으면: 강제 절단하지 않고 1편 반환 (손실 방지)
+
+    반환: 길이 1 또는 2의 리스트.
+    """
+    stripped = text.strip()
+    if len(stripped) < min_chars:
+        return [stripped]
+
+    paras = _split_paragraphs(text)
+    if len(paras) < 2:
+        # 경계가 없으면 강제로 자르지 않음 (학습 내용 손실 방지)
+        return [stripped]
+
+    # 1) 명시적 오후 마커 우선 (본문 20% 이후 위치에서만 — 오탐 방지)
+    total = sum(len(p) for p in paras)
+    acc = 0
+    for idx, p in enumerate(paras):
+        if idx > 0 and acc >= total * 0.2:
+            first_line = p.splitlines()[0] if p.splitlines() else ""
+            if _AFTERNOON_MARKER.match(first_line.strip()):
+                first = "\n\n".join(paras[:idx]).strip()
+                second = "\n\n".join(paras[idx:]).strip()
+                if first and second:
+                    return [first, second]
+        acc += len(p)
+
+    # 2) 마커 없으면 누적 길이 절반 경계에서 분리 (양쪽 최소 1단락 보장)
+    half = total / 2
+    acc = 0
+    split_at = 1
+    for idx, p in enumerate(paras):
+        acc += len(p)
+        if acc >= half:
+            split_at = min(max(idx + 1, 1), len(paras) - 1)
+            break
+
+    first = "\n\n".join(paras[:split_at]).strip()
+    second = "\n\n".join(paras[split_at:]).strip()
+    if not first or not second:
+        return [stripped]
+    return [first, second]
+
+
 def split_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHARS) -> list[str]:
     """빈 줄 기준으로 단락 분리 후 max_chars 이하로 청킹."""
     paragraphs = re.split(r"\n\s*\n", text)

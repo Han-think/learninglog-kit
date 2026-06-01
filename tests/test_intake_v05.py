@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from learninglog.init_project import REGISTRY_HEADER
 from learninglog.intake import REGISTRY_FIELDS, run_intake
-from learninglog.chunker import remove_extra_hugo_front_matter
+from learninglog.chunker import remove_extra_hugo_front_matter, split_into_halves
 
 
 def _cfg(root: Path) -> dict:
@@ -95,6 +95,29 @@ mode: working_note
         self.assertNotIn("model:", cleaned)
         self.assertNotIn("huihui", cleaned)
         self.assertNotIn("mode:", cleaned)
+
+    def test_split_short_note_returns_single(self) -> None:
+        self.assertEqual(len(split_into_halves("짧은 글", min_chars=1200)), 1)
+
+    def test_split_long_note_two_no_loss(self) -> None:
+        para = "가" * 800
+        text = "\n\n".join([para] * 4)
+        halves = split_into_halves(text)
+        self.assertEqual(len(halves), 2)
+        # 내용 손실 없음 (글자 수 보존)
+        self.assertEqual((halves[0] + halves[1]).count("가"), text.count("가"))
+        for h in halves:
+            self.assertTrue(h.strip())
+
+    def test_split_single_long_paragraph_falls_back(self) -> None:
+        # 단락 경계가 없으면 강제로 자르지 않고 1편
+        self.assertEqual(len(split_into_halves("가" * 5000)), 1)
+
+    def test_split_explicit_afternoon_marker(self) -> None:
+        text = "## 오전 공부\n" + ("내용 " * 200) + "\n\n## 오후 공부\n" + ("내용 " * 200)
+        halves = split_into_halves(text)
+        self.assertEqual(len(halves), 2)
+        self.assertIn("오후", halves[1])
 
     def test_registers_pdf_ipynb_md_and_skips_duplicate_hash(self) -> None:
         with tempfile.TemporaryDirectory() as td:
