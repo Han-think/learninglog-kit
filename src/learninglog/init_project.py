@@ -34,8 +34,9 @@ FOLDERS = [
 ]
 
 REGISTRY_HEADER = (
-    "source_id,source_path,source_type,date_added,status,"
-    "topic,language,public_policy,notes\n"
+    "source_id,source_path,file_name,file_path,file_type,source_type,"
+    "source_category,date_added,created_at,status,topic,language,"
+    "public_policy,hash,notes\n"
 )
 
 CONFIG_TEMPLATE_PATH = Path(__file__).parent.parent.parent / "templates" / "config.yaml"
@@ -145,5 +146,9 @@ llm:
 blog:
   platform: "none"         # hugo | jekyll | none
   source_path: "../blog-source"
+  github_repo_url: ""
+  pages_url: ""
+  content_subdir: "content"
+  auto_build: true
   auto_push: false         # true 로 바꾸면 승인 후 자동 git push
 """

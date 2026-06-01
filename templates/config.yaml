@@ -60,6 +60,8 @@ llm:
 blog:
   platform:       "none"        # hugo | jekyll | none
   source_path:    "../blog-source"  # 블로그 소스 폴더 경로
+  github_repo_url: ""           # 예: https://github.com/me/my-blog
+  pages_url:       ""           # 예: https://me.github.io/
   content_subdir: "content"     # 글이 들어갈 하위 폴더 (hugo=content)
   auto_build:     true          # publish 시 hugo 빌드 실행
   auto_push:      false         # true 로 바꾸면 git add/commit/push 자동

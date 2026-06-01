@@ -7,6 +7,20 @@
 
 ---
 
+## v0.5 Beginner Flow — 아무것도 몰라도 쓰는 순서
+
+1. Python 3.10+ 설치 확인: `python --version`
+2. ZIP 또는 pip로 설치: `pip install "learninglog-kit[web,gemini]"`
+3. UI 실행: `learninglog ui`
+4. UI에 API 키, 블로그 소스 폴더, GitHub repo URL, Pages URL 입력
+5. `00_inbox/lectures/`에는 PDF/ipynb, `00_inbox/personal_notes/`에는 내 md 노트 넣기
+6. UI에서 `intake 등록`을 눌러 새 파일/중복/hash/public_policy 확인
+7. md 개인 노트만 `extract`, 검토된 draft만 `publish`, 마지막에 `GitHub push`
+
+> API 키는 초보자 편의를 위해 `config.yaml` 저장을 기본으로 합니다. `.learninglog/config.yaml`은 `.gitignore`에 포함되어야 하며 GitHub에 올리면 안 됩니다.
+
+---
+
 ## 가장 쉬운 시작 — 웹 UI (추천)
 
 ```bash
@@ -18,7 +32,8 @@ learninglog ui
 1. **작업 폴더 생성** 버튼 클릭
 2. **Gemini** 선택 → [API 키 발급](https://aistudio.google.com/app/apikey) → 키 붙여넣기 → 저장+테스트
 3. `00_inbox/personal_notes/` 에 노트(.md) 넣기
-4. **① intake → ② extract → ③ publish** 버튼 클릭
+4. 블로그/GitHub 주소 입력
+5. **① intake → ② extract → ③ publish → ④ GitHub push** 버튼 클릭
 
 설치·설정·실행을 전부 버튼으로. 터미널 명령 몰라도 됩니다.
 
@@ -98,7 +113,8 @@ learninglog publish    # 블로그로 발행 (blog 설정 시)
 | `learninglog intake` | 새 파일 자동 등록 |
 | `learninglog queue` | 처리 대기 목록 확인 |
 | `learninglog extract` | LLM으로 extract + working_note + blog_draft 생성 |
-| `learninglog publish` | 초안을 블로그로 발행 (draft:false + ai_assisted 마킹 + hugo 빌드 + git push) |
+| `learninglog publish` | 초안을 블로그로 발행 (draft:false + ai_assisted 마킹 + hugo 빌드) |
+| `learninglog push` | 설정된 블로그 Git 저장소에 명시적으로 git add/commit/push |
 | `learninglog status` | 전체 현황 요약 |
 | `learninglog doctor` | 설정 및 LLM 연결 진단 |
 | `learninglog clean` | 생성 **데이터만** 정리 (재시작용, 패키지 유지) |
@@ -129,16 +145,40 @@ learninglog uninstall --keep-package  # 데이터만, 패키지 유지
 
 > `00_inbox/` 의 원본 노트는 **어떤 경우에도 자동 삭제되지 않습니다.** 직접 지우세요.
 
-### 블로그 발행 설정
+### 블로그/GitHub 발행 설정
 
 `.learninglog/config.yaml` 의 `blog` 섹션:
 ```yaml
 blog:
   platform:    "hugo"            # hugo | jekyll | none
   source_path: "../blog-source"  # 블로그 소스 폴더
+  github_repo_url: "https://github.com/USER/REPO"
+  pages_url: "https://USER.github.io/"
   auto_build:  true              # hugo 빌드 실행
-  auto_push:   false             # git push 자동 (기본 off)
+  auto_push:   true              # UI/CLI push 버튼 사용
 ```
+
+---
+
+## 반복문 수업 예시 — 파일 처리 컨베이어 벨트
+
+LearningLog Kit의 `intake`는 반복문이 실제 자동화에서 어떻게 쓰이는지 보여주는 예시입니다.
+
+```python
+for file in inbox_files:
+    if is_new_file(file):
+        register_to_source_registry(file)
+```
+
+실제 동작은 다음과 같습니다.
+
+- `00_inbox` 안의 PDF, ipynb, md, zip, 이미지를 하나씩 훑습니다.
+- 파일 hash를 계산해 이미 등록된 자료인지 확인합니다.
+- 파일 종류에 따라 `lecture_pdf`, `practice_notebook`, `personal_note` 등으로 분류합니다.
+- 강의 원본 PDF와 zip, screenshot은 `internal-only`로 막아 블로그 공개 사고를 예방합니다.
+- 실행 후 `09_reports/RUN_..._intake_report.md`에 신규/중복/오류 요약을 남깁니다.
+
+PDF와 ipynb는 기본적으로 “등록과 추적”까지만 자동화합니다. 블로그 초안은 내가 재작성한 md 개인 노트에서 만드는 것이 안전합니다.
 
 ---
 

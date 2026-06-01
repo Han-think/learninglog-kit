@@ -169,18 +169,18 @@ def run_wizard(config_path: Path) -> None:
     # ─── 저장 방법 ────────────────────────────────────────────
     console.print()
     console.print("  [bold]키 저장 방법 / How to save key:[/]")
-    console.print("  [1] 환경변수 ~/.bashrc  — 보안 권장 / Recommended")
-    console.print("  [2] config.yaml 직접 입력 — 간단하지만 주의 필요")
+    console.print("  [1] config.yaml 직접 저장 — 초보자 기본값, GitHub 업로드 금지")
+    console.print("  [2] 환경변수 ~/.bashrc  — 보안 권장")
     console.print()
 
     save = Prompt.ask("  선택 / Choose", choices=["1", "2"], default="1")
 
     if save == "1":
-        _save_to_bashrc(info["env_var"], api_key)
-        key_for_config = ""
-    else:
         console.print("  [yellow]⚠  config.yaml 을 GitHub 에 올리지 않도록 주의하세요.[/]")
         key_for_config = api_key
+    else:
+        _save_to_bashrc(info["env_var"], api_key)
+        key_for_config = ""
 
     _update_config(config_path, provider, key_for_config, info["model"])
 

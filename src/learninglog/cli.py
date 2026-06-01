@@ -128,6 +128,15 @@ def publish(source_id: str) -> None:
     run_publish(cfg, source_id=source_id)
 
 
+# ─── push ──────────────────────────────────────────────────
+@main.command()
+def push() -> None:
+    """설정된 블로그 Git 저장소에 변경사항을 명시적으로 push 합니다."""
+    cfg = _load_or_exit()
+    from .publish import run_push
+    run_push(cfg)
+
+
 # ─── clean ─────────────────────────────────────────────────
 @main.command()
 @click.option("--outputs", is_flag=True, help="생성물(02~06, 09_reports) 삭제")
@@ -221,6 +230,7 @@ def doctor() -> None:
 
     config_file = find_config()
     console.print(f"  config.yaml  : [dim]{config_file}[/]")
+    _print_environment_checks(cfg)
     console.print()
 
 
@@ -257,3 +267,42 @@ def _print_status(cfg: dict) -> None:
     console.print(f"  작업 중    : [cyan]{working}[/]")
     console.print(f"  초안 완료  : [green]{drafted}[/]")
     console.print()
+
+
+def _print_environment_checks(cfg: dict) -> None:
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    def mark(ok: bool) -> str:
+        return "[green]OK[/]" if ok else "[yellow]확인 필요[/]"
+
+    console.print("\n  [bold]환경 체크[/]")
+    console.print(f"  Python       : [green]OK[/] ({sys.version.split()[0]})")
+
+    hugo = shutil.which("hugo")
+    console.print(f"  Hugo         : {mark(bool(hugo))}" + (f" ({hugo})" if hugo else ""))
+
+    blog = cfg.get("blog", {})
+    source_path = blog.get("source_path", "")
+    blog_root = Path(source_path) if source_path else Path("")
+    if source_path and not blog_root.is_absolute():
+        cf = find_config()
+        root = cf.parent.parent if cf else Path.cwd()
+        blog_root = (root / source_path).resolve()
+    console.print(f"  Blog path    : {mark(bool(source_path and blog_root.exists()))}" + (f" ({blog_root})" if source_path else ""))
+    console.print(f"  Git repo     : {mark(bool(source_path and (blog_root / '.git').exists()))}")
+
+    if source_path and (blog_root / ".git").exists():
+        try:
+            remote = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                cwd=blog_root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            ok = remote.returncode == 0 and bool(remote.stdout.strip())
+            console.print(f"  Git origin   : {mark(ok)}" + (f" ({remote.stdout.strip()})" if ok else ""))
+        except Exception:
+            console.print(f"  Git origin   : {mark(False)}")

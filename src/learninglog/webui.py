@@ -11,6 +11,7 @@
 
 import csv
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -84,6 +85,7 @@ def _html() -> str:
   .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin-top:.8rem; }
   .hint { font-size:.82rem; color:var(--mut); margin-top:.4rem; }
   .hint a { color:var(--acc); }
+  .danger { color:#ffd27d; background:#3a2718; border:1px solid #7a4d1e; padding:.65rem; border-radius:8px; font-size:.84rem; }
   .stat { display:flex; gap:1.5rem; flex-wrap:wrap; }
   .stat div { text-align:center; }
   .stat .n { font-size:1.6rem; font-weight:700; color:var(--acc); }
@@ -106,6 +108,7 @@ def _html() -> str:
 
   <h2>2. LLM 선택 + API 키</h2>
   <div class="card">
+    <div class="danger">API 키는 편의를 위해 config.yaml에 저장됩니다. 이 파일을 GitHub, 메신저, 블로그에 올리지 마세요.</div>
     <div class="prov" id="provs"></div>
     <div id="keybox">
       <label>API 키 붙여넣기</label>
@@ -118,13 +121,35 @@ def _html() -> str:
     </div>
   </div>
 
-  <h2>3. 실행</h2>
+  <h2>3. 블로그 + GitHub 연결</h2>
+  <div class="card">
+    <label>블로그 소스 폴더</label>
+    <input id="blogpath" placeholder="../blog-source 또는 C:\\path\\to\\blog">
+    <label>GitHub 저장소 주소</label>
+    <input id="repo" placeholder="https://github.com/USER/REPO">
+    <label>GitHub Pages 주소</label>
+    <input id="pages" placeholder="https://USER.github.io/">
+    <label><input id="autopush" type="checkbox" style="width:auto;margin-right:.4rem"> GitHub push 버튼 사용</label>
+    <div class="hint">publish는 글 복사/빌드까지만 실행합니다. GitHub 업로드는 아래 push 버튼을 직접 누를 때만 실행됩니다.</div>
+    <div class="row">
+      <button class="act" onclick="saveBlog()">블로그 설정 저장</button>
+      <span id="blogstat"></span>
+    </div>
+  </div>
+
+  <h2>4. 상태 체크</h2>
+  <div class="card">
+    <div id="checks" class="hint">확인 중...</div>
+  </div>
+
+  <h2>5. 실행</h2>
   <div class="card">
     <div class="stat" id="stat"><div><div class="n">–</div><div class="l">전체</div></div></div>
     <div class="row">
       <button class="ghost" onclick="run('intake', this)">① intake 등록</button>
       <button class="ghost" onclick="run('extract', this)">② extract 처리</button>
       <button class="ghost" onclick="run('publish', this)">③ publish 발행</button>
+      <button class="ghost" onclick="run('push', this)">④ GitHub push</button>
       <button class="ghost" onclick="loadStatus()">↻ 새로고침</button>
     </div>
     <div class="row"><pre id="out">대기 중...</pre></div>
@@ -140,6 +165,10 @@ async function boot() {
   document.getElementById('proj').innerHTML =
     `<span class="pill">📁 ${d.project_dir}</span> ` +
     (d.has_config ? '<span class="pill ok">설정됨</span>' : '<span class="pill warn">미설정</span>');
+  document.getElementById('blogpath').value = d.blog.source_path || '';
+  document.getElementById('repo').value = d.blog.github_repo_url || '';
+  document.getElementById('pages').value = d.blog.pages_url || '';
+  document.getElementById('autopush').checked = !!d.blog.auto_push;
   const pe = document.getElementById('provs'); pe.innerHTML = '';
   for (const [k,v] of Object.entries(provData)) {
     const b = document.createElement('button');
@@ -172,6 +201,20 @@ async function saveCfg() {
   document.getElementById('savestat').innerHTML = d.ok
     ? '<span class="ok">✓ '+d.msg+'</span>' : '<span class="err">✗ '+d.msg+'</span>';
 }
+async function saveBlog() {
+  document.getElementById('blogstat').textContent = '저장 중...';
+  const body = {
+    source_path: document.getElementById('blogpath').value.trim(),
+    github_repo_url: document.getElementById('repo').value.trim(),
+    pages_url: document.getElementById('pages').value.trim(),
+    auto_push: document.getElementById('autopush').checked
+  };
+  const r = await fetch('/api/blog', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  document.getElementById('blogstat').innerHTML = d.ok
+    ? '<span class="ok">✓ '+d.msg+'</span>' : '<span class="err">✗ '+d.msg+'</span>';
+  loadStatus();
+}
 async function run(step, btn) {
   const all = document.querySelectorAll('#stat ~ .row button, .card .row button.ghost');
   all.forEach(b=>b.disabled = true);
@@ -195,6 +238,8 @@ async function loadStatus() {
      <div><div class="n">${d.pending}</div><div class="l">대기</div></div>
      <div><div class="n">${d.drafted}</div><div class="l">초안</div></div>
      <div><div class="n">${d.published}</div><div class="l">발행</div></div>`;
+  document.getElementById('checks').innerHTML =
+    d.checks.map(x => `<div>${x.ok ? '<span class="ok">✓</span>' : '<span class="warn">!</span>'} ${x.name}: ${x.detail}</div>`).join('');
 }
 function setOut(t){ document.getElementById('out').textContent = t; }
 boot();
@@ -226,6 +271,7 @@ def create_app(project_dir: Path):
             "has_config": _cfg_path().exists(),
             "current_provider": cfg.get("llm", {}).get("provider", "gemini"),
             "providers": PROVIDERS,
+            "blog": cfg.get("blog", {}),
         })
 
     @app.post("/api/init")
@@ -268,13 +314,27 @@ def create_app(project_dir: Path):
             msg += "  (환경변수 키 사용)"
         return JSONResponse({"ok": ok, "msg": msg})
 
+    @app.post("/api/blog")
+    async def api_blog(request: Request):
+        body = await request.json()
+        if not _cfg_path().exists():
+            _run_cmd(["init", str(project_dir)], skip_wizard=True)
+        _update_blog_config(
+            _cfg_path(),
+            source_path=(body.get("source_path") or "").strip(),
+            github_repo_url=(body.get("github_repo_url") or "").strip(),
+            pages_url=(body.get("pages_url") or "").strip(),
+            auto_push=bool(body.get("auto_push")),
+        )
+        return JSONResponse({"ok": True, "msg": "블로그/GitHub 설정 저장 완료"})
+
     @app.get("/api/status")
     def status():
         return JSONResponse(_status(project_dir))
 
     @app.post("/api/run/{step}")
     def run_step(step: str):
-        if step not in ("intake", "extract", "publish", "queue"):
+        if step not in ("intake", "extract", "publish", "queue", "push"):
             return JSONResponse({"output": "알 수 없는 단계: " + step})
         return JSONResponse({"output": _run_cmd([step])})
 
@@ -291,6 +351,29 @@ def create_app(project_dir: Path):
             return f"실행 오류: {e}"
 
     return app
+
+
+def _update_blog_config(
+    config_path: Path,
+    source_path: str,
+    github_repo_url: str,
+    pages_url: str,
+    auto_push: bool,
+) -> None:
+    import yaml
+
+    with open(config_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+    blog = cfg.setdefault("blog", {})
+    blog["platform"] = "hugo" if source_path else blog.get("platform", "none")
+    blog["source_path"] = source_path
+    blog["github_repo_url"] = github_repo_url
+    blog["pages_url"] = pages_url
+    blog.setdefault("content_subdir", "content")
+    blog.setdefault("auto_build", True)
+    blog["auto_push"] = auto_push
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 def _test(provider: str, key: str, model: str):
@@ -330,7 +413,7 @@ def _test(provider: str, key: str, model: str):
 
 def _status(project_dir: Path) -> dict:
     reg = project_dir / "01_registry" / "source_registry.csv"
-    s = {"total": 0, "pending": 0, "drafted": 0, "published": 0}
+    s = {"total": 0, "pending": 0, "drafted": 0, "published": 0, "checks": _checks(project_dir)}
     if reg.exists():
         with open(reg, encoding="utf-8") as f:
             for row in csv.DictReader(f):
@@ -340,6 +423,28 @@ def _status(project_dir: Path) -> dict:
                 elif st == "drafted": s["drafted"] += 1
                 elif st == "published": s["published"] += 1
     return s
+
+
+def _checks(project_dir: Path) -> list[dict]:
+    cfg_path = project_dir / ".learninglog" / "config.yaml"
+    cfg = load_config(cfg_path) if cfg_path.exists() else {}
+    provider = cfg.get("llm", {}).get("provider", "none")
+    blog = cfg.get("blog", {})
+    source_path = blog.get("source_path", "")
+    blog_root = Path(source_path) if source_path else Path("")
+    if source_path and not blog_root.is_absolute():
+        blog_root = (project_dir / source_path).resolve()
+
+    return [
+        {"name": "Python", "ok": True, "detail": sys.version.split()[0]},
+        {"name": "config.yaml", "ok": cfg_path.exists(), "detail": str(cfg_path) if cfg_path.exists() else "없음"},
+        {"name": "LLM provider", "ok": provider != "none", "detail": provider},
+        {"name": "Hugo", "ok": bool(shutil.which("hugo")), "detail": shutil.which("hugo") or "명령 없음"},
+        {"name": "Blog path", "ok": bool(source_path and blog_root.exists()), "detail": str(blog_root) if source_path else "미설정"},
+        {"name": "Git repo", "ok": bool(source_path and (blog_root / ".git").exists()), "detail": str(blog_root / ".git") if source_path else "미설정"},
+        {"name": "GitHub URL", "ok": bool(blog.get("github_repo_url")), "detail": blog.get("github_repo_url") or "미설정"},
+        {"name": "Pages URL", "ok": bool(blog.get("pages_url")), "detail": blog.get("pages_url") or "미설정"},
+    ]
 
 
 def run_ui(host: str = "127.0.0.1", port: int = 8765, project_dir: Path | None = None) -> None:
