@@ -277,11 +277,30 @@ def _print_environment_checks(cfg: dict) -> None:
     def mark(ok: bool) -> str:
         return "[green]OK[/]" if ok else "[yellow]확인 필요[/]"
 
+    # 누락 항목별 해결 안내를 모아 뒤에 한 번에 출력
+    fixes: list[str] = []
+
     console.print("\n  [bold]환경 체크[/]")
     console.print(f"  Python       : [green]OK[/] ({sys.version.split()[0]})")
 
+    # Hugo — 블로그 빌드(publish)에 필요
     hugo = shutil.which("hugo")
     console.print(f"  Hugo         : {mark(bool(hugo))}" + (f" ({hugo})" if hugo else ""))
+    if not hugo:
+        fixes.append(
+            "Hugo 미설치 (publish 단계 필요) — extended 버전 설치:\n"
+            "      https://gohugo.io/installation/\n"
+            "      Windows: winget install Hugo.Hugo.Extended"
+        )
+
+    # Git — 블로그 발행/푸시에 필요
+    git = shutil.which("git")
+    console.print(f"  Git          : {mark(bool(git))}" + (f" ({git})" if git else ""))
+    if not git:
+        fixes.append(
+            "Git 미설치 (블로그 발행 필요) — 설치:\n"
+            "      https://git-scm.com/downloads"
+        )
 
     blog = cfg.get("blog", {})
     source_path = blog.get("source_path", "")
@@ -290,10 +309,30 @@ def _print_environment_checks(cfg: dict) -> None:
         cf = find_config()
         root = cf.parent.parent if cf else Path.cwd()
         blog_root = (root / source_path).resolve()
-    console.print(f"  Blog path    : {mark(bool(source_path and blog_root.exists()))}" + (f" ({blog_root})" if source_path else ""))
-    console.print(f"  Git repo     : {mark(bool(source_path and (blog_root / '.git').exists()))}")
 
-    if source_path and (blog_root / ".git").exists():
+    blog_ok = bool(source_path and blog_root.exists())
+    console.print(f"  Blog path    : {mark(blog_ok)}" + (f" ({blog_root})" if source_path else ""))
+    if not blog_ok:
+        if not source_path:
+            fixes.append(
+                "블로그 경로 미설정 — config.yaml 의 blog.source_path 에 Hugo 블로그 폴더 경로를 적으세요.\n"
+                "      블로그가 없다면 publish 없이 extract(노트 정리)까지만 써도 됩니다."
+            )
+        else:
+            fixes.append(
+                f"블로그 폴더를 찾을 수 없음: {blog_root}\n"
+                "      config.yaml 의 blog.source_path 를 실제 Hugo 사이트 폴더로 고치세요."
+            )
+
+    git_repo_ok = bool(source_path and (blog_root / ".git").exists())
+    console.print(f"  Git repo     : {mark(git_repo_ok)}")
+    if source_path and blog_root.exists() and not git_repo_ok:
+        fixes.append(
+            f"블로그 폴더가 Git 저장소가 아님 — GitHub Pages 발행하려면 초기화:\n"
+            f"      cd \"{blog_root}\" && git init && git remote add origin <저장소URL>"
+        )
+
+    if git_repo_ok and git:
         try:
             remote = subprocess.run(
                 ["git", "remote", "get-url", "origin"],
@@ -304,5 +343,15 @@ def _print_environment_checks(cfg: dict) -> None:
             )
             ok = remote.returncode == 0 and bool(remote.stdout.strip())
             console.print(f"  Git origin   : {mark(ok)}" + (f" ({remote.stdout.strip()})" if ok else ""))
+            if not ok:
+                fixes.append(
+                    f"Git 원격(origin) 미설정 — 발행 대상 지정:\n"
+                    f"      cd \"{blog_root}\" && git remote add origin <저장소URL>"
+                )
         except Exception:
             console.print(f"  Git origin   : {mark(False)}")
+
+    if fixes:
+        console.print("\n  [bold yellow]해결 안내[/]")
+        for f in fixes:
+            console.print(f"  • {f}")
