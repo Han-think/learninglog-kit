@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 # 여유 있게 1500자 기본값
 DEFAULT_MAX_CHARS = 1500
 
+FRONT_MATTER_KEYS = (
+    "title:",
+    "date:",
+    "draft:",
+    "categories:",
+    "tags:",
+    "description:",
+)
+
 
 def split_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHARS) -> list[str]:
     """빈 줄 기준으로 단락 분리 후 max_chars 이하로 청킹."""
@@ -106,3 +115,60 @@ def generate_chunked(
         print("OK")
 
     return merged
+
+
+def remove_extra_hugo_front_matter(text: str) -> str:
+    """Keep only the first Hugo YAML front matter block.
+
+    Small local models often repeat ``title/date/draft`` blocks for each chunk.
+    This cleanup is intentionally conservative: it only removes fenced blocks
+    that look like Hugo metadata and occur after the first top-of-file block.
+    """
+    lines = text.splitlines()
+    if not lines:
+        return text
+
+    start = 0
+    if lines[0].strip() == "---":
+        for i in range(1, len(lines)):
+            if lines[i].strip() == "---":
+                start = i + 1
+                break
+
+    out = lines[:start]
+    i = start
+    while i < len(lines):
+        block = _extra_front_matter_block(lines, i)
+        if block:
+            i = block
+            while out and out[-1].strip() == "":
+                out.pop()
+            if out and out[-1].strip() == "---":
+                out.pop()
+            while i < len(lines) and lines[i].strip() == "":
+                i += 1
+            continue
+        out.append(lines[i])
+        i += 1
+
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _extra_front_matter_block(lines: list[str], index: int) -> int | None:
+    if lines[index].strip() != "---":
+        return None
+    end = None
+    for j in range(index + 1, min(len(lines), index + 20)):
+        if lines[j].strip() == "---":
+            end = j
+            break
+    if end is None:
+        return None
+
+    body = [line.strip().lower() for line in lines[index + 1 : end]]
+    key_count = sum(1 for line in body if line.startswith(FRONT_MATTER_KEYS))
+    has_title = any(line.startswith("title:") for line in body)
+    has_draft_or_date = any(line.startswith(("date:", "draft:")) for line in body)
+    if has_title and has_draft_or_date and key_count >= 3:
+        return end + 1
+    return None

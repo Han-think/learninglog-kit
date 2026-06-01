@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from learninglog.init_project import REGISTRY_HEADER
 from learninglog.intake import REGISTRY_FIELDS, run_intake
+from learninglog.chunker import remove_extra_hugo_front_matter
 
 
 def _cfg(root: Path) -> dict:
@@ -33,6 +34,39 @@ def _init_minimal(root: Path) -> None:
 
 
 class IntakeV05Tests(unittest.TestCase):
+    def test_removes_repeated_hugo_front_matter_blocks(self) -> None:
+        raw = """---
+title: "First"
+date: 2026-06-01
+draft: true
+categories: ["learning"]
+tags: []
+description: "first"
+---
+
+Body 1
+
+---
+
+---
+title: "Second"
+date: 2026-06-01
+draft: true
+categories: ["learning"]
+tags: []
+description: "second"
+---
+
+Body 2
+"""
+
+        cleaned = remove_extra_hugo_front_matter(raw)
+
+        self.assertIn('title: "First"', cleaned)
+        self.assertNotIn('title: "Second"', cleaned)
+        self.assertIn("Body 1", cleaned)
+        self.assertIn("Body 2", cleaned)
+
     def test_registers_pdf_ipynb_md_and_skips_duplicate_hash(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             tmp_path = Path(td)

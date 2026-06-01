@@ -27,6 +27,7 @@ from typing import Any
 from rich.console import Console
 
 from .config import resolve_path, get
+from .chunker import remove_extra_hugo_front_matter
 
 console = Console()
 
@@ -167,6 +168,7 @@ def _read_source_id(path: Path) -> str:
 
 def _process_front_matter(content: str, model: str = "local-llm") -> tuple[str, str]:
     """draft→false, source_id 제거, ai_assisted 마킹. (처리된내용, source_id) 반환."""
+    content = remove_extra_hugo_front_matter(content)
     if not content.startswith("---"):
         return content, ""
 

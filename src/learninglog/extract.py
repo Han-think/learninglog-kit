@@ -11,7 +11,7 @@ from rich.console import Console
 
 from .config import resolve_path
 from .adapters.base import LLMAdapter
-from .chunker import generate_chunked, DEFAULT_MAX_CHARS
+from .chunker import generate_chunked, remove_extra_hugo_front_matter, DEFAULT_MAX_CHARS
 
 console = Console()
 
@@ -182,6 +182,7 @@ def run_extract(
                     instruction = BLOG_DRAFT_INSTRUCTION.format(date=today)
                     result = generate_chunked(adapter, instruction, wk_content,
                                               max_chars=max_chars, verbose=False)
+                    result = remove_extra_hugo_front_matter(result)
                     draft_path.write_text(result, encoding="utf-8")
                     _update_status(registry, sid, "drafted")
                     console.print("[green]OK[/]")
