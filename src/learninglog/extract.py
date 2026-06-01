@@ -63,13 +63,38 @@ PROMPTS = {
 }
 
 
+def _resolve_max_chars(adapter: LLMAdapter, max_chars: int) -> int:
+    """청크 크기 결정 (단일/그룹 모드 공유). 기본값이면 provider 기준 자동 계산."""
+    if max_chars != DEFAULT_MAX_CHARS:
+        return max_chars
+    if adapter.provider_name == "ollama":
+        from .adapters.ollama import OllamaAdapter
+        if isinstance(adapter, OllamaAdapter):
+            mc = adapter.safe_max_chars()
+            console.print(f"  Ollama 컨텍스트: {adapter.num_ctx}토큰 → 청크: [cyan]{mc}[/] 자/파트")
+            return mc
+        return max_chars
+    # 클라우드 API (Gemini/Groq/Claude/OpenAI): 컨텍스트 충분 → 청킹 불필요
+    console.print(f"  클라우드 API ({adapter.provider_name}) → 청킹 없음 (최대 50000자)")
+    return 50000
+
+
 def run_extract(
     cfg: dict[str, Any],
     adapter: LLMAdapter,
     source_id: str = "",
     skip_llm: bool = False,
     max_chars: int = DEFAULT_MAX_CHARS,
+    group: bool = False,
+    date_filter: str = "",
+    period: str = "",
 ) -> None:
+    # 그룹 모드: 오전/오후 INDEX 기준으로 묶어 통합 글 1편
+    if group:
+        run_group_extract(cfg, adapter, skip_llm=skip_llm, max_chars=max_chars,
+                           date_filter=date_filter, period=period)
+        return
+
     root       = resolve_path(cfg, "registry", "01_registry/source_registry.csv").parent.parent
     registry   = resolve_path(cfg, "registry", "01_registry/source_registry.csv")
     inbox      = resolve_path(cfg, "inbox", "00_inbox")
@@ -99,17 +124,7 @@ def run_extract(
         return
 
     # 청크 크기 결정
-    if max_chars == DEFAULT_MAX_CHARS:
-        if adapter.provider_name == "ollama":
-            # Ollama: num_ctx 기반으로 계산
-            from .adapters.ollama import OllamaAdapter
-            if isinstance(adapter, OllamaAdapter):
-                max_chars = adapter.safe_max_chars()
-                console.print(f"  Ollama 컨텍스트: {adapter.num_ctx}토큰 → 청크: [cyan]{max_chars}[/] 자/파트")
-        else:
-            # 클라우드 API (Gemini/Groq/Claude/OpenAI): 컨텍스트 충분 → 청킹 불필요
-            max_chars = 50000
-            console.print(f"  클라우드 API ({adapter.provider_name}) → 청킹 없음 (최대 {max_chars}자)")
+    max_chars = _resolve_max_chars(adapter, max_chars)
 
     console.print(f"\n  대상: [cyan]{len(targets)}[/] 개  |  LLM: [cyan]{adapter.provider_name}[/]\n")
 
@@ -221,6 +236,107 @@ def run_extract(
                 _update_status(registry, sid, "drafted")
         else:
             console.print("    [dim]MODE 4 draft     SKIP (internal-only)[/]")
+
+    console.print()
+
+
+def run_group_extract(
+    cfg: dict[str, Any],
+    adapter: LLMAdapter,
+    *,
+    skip_llm: bool = False,
+    max_chars: int = DEFAULT_MAX_CHARS,
+    date_filter: str = "",
+    period: str = "",
+) -> None:
+    """오전/오후 INDEX 기준으로 여러 노트를 묶어 통합 블로그 글 1편 생성."""
+    from .groups import (
+        find_index_files, build_group, assemble_group_body, pick_section,
+    )
+
+    root      = resolve_path(cfg, "registry", "01_registry/source_registry.csv").parent.parent
+    registry  = resolve_path(cfg, "registry", "01_registry/source_registry.csv")
+    inbox     = resolve_path(cfg, "inbox", "00_inbox")
+    notes_dir = inbox / "personal_notes"
+    drafts    = resolve_path(cfg, "drafts", "04_blog_drafts")
+
+    indexes = find_index_files(notes_dir, date=date_filter, period=period)
+    if not indexes:
+        console.print("[yellow]처리할 INDEX(AM/PM) 파일 없음.[/]")
+        return
+
+    # registry 보강 lookup (policy/status) — 파일명 기준
+    reg_by_file: dict[str, dict[str, str]] = {}
+    if registry.exists():
+        with open(registry, encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                fn = Path(row.get("source_path", "")).name
+                if fn:
+                    reg_by_file[fn] = row
+
+    max_chars = _resolve_max_chars(adapter, max_chars)
+    console.print(f"\n  그룹 대상: [cyan]{len(indexes)}[/] 개 INDEX  |  LLM: [cyan]{adapter.provider_name}[/]\n")
+
+    PROTECTED = ("published", "archived")
+
+    for d, per, index_path in indexes:
+        console.print(f"  [magenta][{d} {per}][/] {index_path.name}")
+        group = build_group(index_path)
+
+        # registry fallback: INDEX 에 policy 없던 노트는 registry 값으로 보강 후 재필터
+        kept = []
+        for note in group.notes:
+            if not note.policy_from_index and note.filename in reg_by_file:
+                note.public_policy = reg_by_file[note.filename].get(
+                    "public_policy", note.public_policy)
+            if note.public_policy.lower() in ("private", "internal-only"):
+                continue
+            kept.append(note)
+        group.notes = kept
+
+        if not group.notes:
+            console.print("    [dim]SKIP — 공개 가능한 노트 없음[/]")
+            continue
+
+        body, used = assemble_group_body(group, notes_dir)
+        if not body:
+            console.print("    [dim]SKIP — 합칠 본문 없음[/]")
+            continue
+
+        console.print(f"    노트 {len(used)}개 합침 ({', '.join(str(n.number) for n in group.notes)})")
+        if skip_llm:
+            console.print("    [dim]--skip-llm: LLM 건너뜀[/]")
+            continue
+
+        section   = pick_section(group.notes)
+        draft_dir = drafts / section
+        draft_dir.mkdir(parents=True, exist_ok=True)
+        out_path  = draft_dir / f"{d}-{per.lower()}.md"
+
+        if out_path.exists():
+            console.print(f"    [dim]SKIP (존재): {out_path.name}[/]")
+            continue
+
+        period_kr   = "오전" if per == "AM" else "오후"
+        part_hint   = f"\n(이 글은 {d} {period_kr} 학습 전체를 아우르는 통합 정리 글이다. 한 편으로 작성)"
+        instruction = BLOG_DRAFT_INSTRUCTION.format(date=d)
+
+        console.print(f"    GROUP draft  [{adapter.provider_name}] {out_path.name} ", end="")
+        try:
+            result = generate_chunked(adapter, instruction + part_hint, body,
+                                      max_chars=max_chars, verbose=False)
+            result = remove_extra_hugo_front_matter(result)
+            out_path.write_text(result, encoding="utf-8")
+            console.print("[green]OK[/]")
+            console.print(f"    [dim]→ 04_blog_drafts/{section}/{out_path.name}[/]")
+
+            # status 역행 방지: published/archived 보호, 그 외만 drafted
+            for note in group.notes:
+                row = reg_by_file.get(note.filename)
+                if row and row.get("status") not in PROTECTED:
+                    _update_status(registry, row["source_id"], "drafted")
+        except Exception as e:
+            console.print(f"[red]FAIL[/] {e}")
 
     console.print()
 

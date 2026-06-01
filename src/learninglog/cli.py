@@ -88,14 +88,21 @@ def queue() -> None:
 @click.option("--skip-llm", is_flag=True, help="LLM 없이 패킷 조립만")
 @click.option("--max-chars", default=1500, show_default=True,
               help="청크당 최대 문자 수. 모델 컨텍스트에 맞게 조정 (2048토큰=1500 / 4096토큰=3000)")
-def extract(source_id: str, skip_llm: bool, max_chars: int) -> None:
+@click.option("--group", is_flag=True, help="INDEX(AM/PM) 기준으로 노트를 묶어 통합 글 1편 생성")
+@click.option("--date", "date_filter", default="", help="그룹 모드 날짜 필터 (예: 2026-06-01)")
+@click.option("--period", default="", type=click.Choice(["", "AM", "PM"], case_sensitive=False),
+              help="그룹 모드 시간대 필터 (AM/PM, 생략 시 둘 다)")
+def extract(source_id: str, skip_llm: bool, max_chars: int,
+            group: bool, date_filter: str, period: str) -> None:
     """소스를 LLM 으로 처리해 extract + working_note 를 생성합니다.
 
     \b
     사용 예:
-        learninglog extract                  # 전체 처리
+        learninglog extract                  # 전체 처리 (노트 1개당 글)
         learninglog extract -s SRC-001       # 특정 소스만
         learninglog extract --skip-llm       # 패킷만 조립
+        learninglog extract --group --date 2026-06-01           # 오전/오후 통합 2편
+        learninglog extract --group --date 2026-06-01 --period PM  # 오후 통합 1편
     """
     cfg     = _load_or_exit()
     adapter = create_adapter(cfg)
@@ -109,7 +116,8 @@ def extract(source_id: str, skip_llm: bool, max_chars: int) -> None:
 
     from .extract import run_extract
     run_extract(cfg, adapter=adapter, source_id=source_id,
-                skip_llm=skip_llm, max_chars=max_chars)
+                skip_llm=skip_llm, max_chars=max_chars,
+                group=group, date_filter=date_filter, period=period)
 
 
 # ─── publish ───────────────────────────────────────────────

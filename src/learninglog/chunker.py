@@ -177,16 +177,70 @@ def generate_chunked(
     if len(partials) == 1:
         return partials[0]
 
-    # 병합 — LLM 재호출 없이 직접 연결 (merge pass도 토큰 한계에 걸리므로)
+    # 병합 — LLM 재호출 없이 하나의 일관된 문서로 정리 (로컬 모델 부담 0)
     if verbose:
-        print("      결과 연결 중 ... ", end="", flush=True)
+        print("      결과 정리 중 ... ", end="", flush=True)
 
-    merged = "\n\n---\n\n".join(partials)
+    merged = merge_chunk_drafts(partials)
 
     if verbose:
         print("OK")
 
     return merged
+
+
+def merge_chunk_drafts(partials: list[str]) -> str:
+    """청크별 초안들을 하나의 일관된 문서로 합친다 (LLM 재호출 없음).
+
+    로컬 모델은 청크마다 '완결된 글 한 편'(## 큰제목 + 섹션)을 만들기 때문에
+    그냥 이어붙이면 ## 가 청크 수만큼 반복된다. 여기서:
+    - 첫 청크의 front matter + 첫 '## 주제' 1개만 글 대표로 유지
+    - 둘째 청크부터의 '## ...' 는 '### ' 로 강등 (내용 보존, 소제목화)
+    - 청크 사이의 '---' 구분선/중복 front matter 는 제거
+    """
+    if not partials:
+        return ""
+    if len(partials) == 1:
+        return partials[0]
+
+    out: list[str] = []
+    seen_top_heading = False
+
+    for idx, part in enumerate(partials):
+        text = part.strip()
+        # 2번째 청크부터: front matter 블록(맨 위 ---...---) 통째 제거
+        if idx > 0:
+            text = _strip_leading_front_matter(text)
+
+        for line in text.splitlines():
+            stripped = line.lstrip()
+            # 최상위 큰제목 '## ' (### 는 제외) 처리
+            if stripped.startswith("## ") and not stripped.startswith("### "):
+                if seen_top_heading:
+                    # 이미 대표 ## 가 있으면 ### 로 강등
+                    indent = line[: len(line) - len(stripped)]
+                    out.append(indent + "#" + stripped)  # '## ' → '### '
+                    continue
+                seen_top_heading = True
+            out.append(line)
+        out.append("")  # 청크 사이 한 줄 띄움
+
+    # 끝의 빈 줄/고립된 '---' 정리
+    while out and out[-1].strip() in ("", "---"):
+        out.pop()
+
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _strip_leading_front_matter(text: str) -> str:
+    """맨 위에 '---'로 감싼 YAML front matter 블록이 있으면 제거하고 본문만 반환."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return text
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "\n".join(lines[i + 1 :]).strip()
+    return text
 
 
 def remove_extra_hugo_front_matter(text: str) -> str:

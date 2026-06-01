@@ -11,7 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from learninglog.init_project import REGISTRY_HEADER
 from learninglog.intake import REGISTRY_FIELDS, run_intake
-from learninglog.chunker import remove_extra_hugo_front_matter, split_into_halves
+from learninglog.chunker import (
+    remove_extra_hugo_front_matter,
+    split_into_halves,
+    merge_chunk_drafts,
+)
 
 
 def _cfg(root: Path) -> dict:
@@ -118,6 +122,45 @@ mode: working_note
         halves = split_into_halves(text)
         self.assertEqual(len(halves), 2)
         self.assertIn("오후", halves[1])
+
+    def test_ollama_num_predict_config_and_clamp(self) -> None:
+        from learninglog.adapters.ollama import OllamaAdapter
+        # 설정값 반영 + num_ctx 기반 출력 토큰 예약으로 청크 크기 계산
+        a = OllamaAdapter(num_ctx=8192, num_predict=2048)
+        self.assertEqual(a.num_predict, 2048)
+        self.assertGreater(a.safe_max_chars(), 1000)
+        # num_predict 가 num_ctx 를 넘으면 안전하게 clamp
+        b = OllamaAdapter(num_ctx=4096, num_predict=9999)
+        self.assertLessEqual(b.num_predict, 4096 - 256)
+
+    def test_merge_chunk_drafts_single_top_heading(self) -> None:
+        p1 = '---\ntitle: "A"\ndraft: true\n---\n\n## 반복문 이해\n\n### 왜 썼나\n내용1'
+        p2 = '---\ntitle: "B"\ndraft: true\n---\n\n## 반복문 또 다른 글\n\n### 배운 것\n내용2'
+        p3 = "## 누적 변수\n\n### 정리\n내용3"
+        merged = merge_chunk_drafts([p1, p2, p3])
+        # 최상위 ## 는 정확히 1개 (### 는 제외하고 카운트)
+        top = [ln for ln in merged.splitlines()
+               if ln.lstrip().startswith("## ") and not ln.lstrip().startswith("### ")]
+        self.assertEqual(len(top), 1)
+        # 강등된 제목은 ### 로 남고 내용 보존
+        self.assertIn("### 반복문 또 다른 글", merged)
+        self.assertIn("### 누적 변수", merged)
+        for c in ("내용1", "내용2", "내용3"):
+            self.assertIn(c, merged)
+        # 2번째 청크의 중복 front matter(title B)는 제거
+        self.assertNotIn('title: "B"', merged)
+
+    def test_merge_chunk_drafts_single_passthrough(self) -> None:
+        one = "## 제목\n\n내용"
+        self.assertEqual(merge_chunk_drafts([one]), one)
+
+    def test_ollama_factory_reads_num_predict(self) -> None:
+        from learninglog.adapters.factory import create_adapter
+        cfg = {"llm": {"provider": "ollama",
+                       "ollama": {"num_ctx": 8192, "num_predict": 2048}}}
+        a = create_adapter(cfg)
+        self.assertEqual(a.num_predict, 2048)
+        self.assertEqual(a.num_ctx, 8192)
 
     def test_registers_pdf_ipynb_md_and_skips_duplicate_hash(self) -> None:
         with tempfile.TemporaryDirectory() as td:

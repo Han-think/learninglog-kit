@@ -21,9 +21,10 @@ def create_adapter(cfg: dict[str, Any]) -> LLMAdapter:
         from .ollama import OllamaAdapter
         c = cfg.get("llm", {}).get("ollama", {})
         return OllamaAdapter(
-            host    = c.get("host",    "http://127.0.0.1:11434"),
-            model   = c.get("model",   "llama3.2:3b"),
-            num_ctx = int(c.get("num_ctx", 4096)),
+            host        = c.get("host",    "http://127.0.0.1:11434"),
+            model       = c.get("model",   "llama3.2:3b"),
+            num_ctx     = int(c.get("num_ctx", 4096)),
+            num_predict = int(c.get("num_predict", 2048)),
         )
 
     elif provider == "gemini":
