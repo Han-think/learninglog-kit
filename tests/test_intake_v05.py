@@ -67,6 +67,35 @@ Body 2
         self.assertIn("Body 1", cleaned)
         self.assertIn("Body 2", cleaned)
 
+    def test_strips_internal_meta_lines_from_body(self) -> None:
+        raw = """---
+title: "Keep me"
+date: 2026-06-01
+draft: false
+---
+
+본문 내용입니다.
+
+---
+source_id: SRC-20260530-001
+note_date: 2026-05-30
+model: huihui_ai/exaone3.5-abliterated:7.8b
+mode: working_note
+---
+"""
+
+        cleaned = remove_extra_hugo_front_matter(raw)
+
+        # 맨 위 frontmatter와 본문은 보존
+        self.assertIn('title: "Keep me"', cleaned)
+        self.assertIn("본문 내용입니다.", cleaned)
+        # 내부 메타는 전부 제거
+        self.assertNotIn("source_id:", cleaned)
+        self.assertNotIn("note_date:", cleaned)
+        self.assertNotIn("model:", cleaned)
+        self.assertNotIn("huihui", cleaned)
+        self.assertNotIn("mode:", cleaned)
+
     def test_registers_pdf_ipynb_md_and_skips_duplicate_hash(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             tmp_path = Path(td)

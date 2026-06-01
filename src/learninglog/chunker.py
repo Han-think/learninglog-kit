@@ -27,6 +27,14 @@ FRONT_MATTER_KEYS = (
     "description:",
 )
 
+# 공개 금지 — LLM/파이프라인이 본문에 흘리는 내부 추적 메타 줄
+INTERNAL_META_KEYS = (
+    "source_id:",
+    "note_date:",
+    "model:",
+    "mode:",
+)
+
 
 def split_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHARS) -> list[str]:
     """빈 줄 기준으로 단락 분리 후 max_chars 이하로 청킹."""
@@ -118,11 +126,17 @@ def generate_chunked(
 
 
 def remove_extra_hugo_front_matter(text: str) -> str:
-    """Keep only the first Hugo YAML front matter block.
+    """Keep only the first Hugo YAML front matter block, and strip internal meta.
 
-    Small local models often repeat ``title/date/draft`` blocks for each chunk.
-    This cleanup is intentionally conservative: it only removes fenced blocks
-    that look like Hugo metadata and occur after the first top-of-file block.
+    Small local models often repeat ``title/date/draft`` blocks for each chunk,
+    and pipelines sometimes leak internal tracking lines
+    (``source_id/note_date/model/mode``) into the body. Both are public-unsafe.
+
+    This cleanup is intentionally conservative:
+    - Only fenced blocks that look like Hugo metadata (title + date/draft + 3
+      keys) and occur after the first top-of-file block are removed.
+    - Internal meta lines are removed anywhere in the body, along with the empty
+      ``---`` separators left around them.
     """
     lines = text.splitlines()
     if not lines:
@@ -148,8 +162,23 @@ def remove_extra_hugo_front_matter(text: str) -> str:
             while i < len(lines) and lines[i].strip() == "":
                 i += 1
             continue
+
+        stripped = lines[i].strip().lower()
+        if any(stripped.startswith(k) for k in INTERNAL_META_KEYS):
+            # 내부 메타 줄 제거 + 직전/직후의 빈 줄·고립된 '---' 정리
+            while out and out[-1].strip() == "":
+                out.pop()
+            if out and out[-1].strip() == "---":
+                out.pop()
+            i += 1
+            continue
+
         out.append(lines[i])
         i += 1
+
+    # 끝에 남은 고립된 '---'·빈 줄 정리
+    while out and out[-1].strip() in ("", "---"):
+        out.pop()
 
     return "\n".join(out).rstrip() + "\n"
 
