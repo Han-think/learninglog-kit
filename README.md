@@ -7,6 +7,26 @@
 
 ---
 
+## 현재 배포 구성
+
+이 저장소는 공개 가능한 킷만 관리합니다. 개인 LearningLog 작업 폴더, `00_inbox`, registry, 발행 이력, API 키 파일은 올리지 않습니다.
+
+| 킷 | 버전 | 위치 | 용도 |
+|----|------|------|------|
+| LearningLog Python/Web UI | 0.5.4 | `src/learninglog/` | Python 패키지와 브라우저 UI |
+| LearningLog Windows Runner | 0.5.4 | `local_powershell/` | Windows PowerShell 로컬 운영판 |
+| DailyLog Kit | 1.2 | `dailylog_kit/` | 하루 회고 Markdown 생성기 |
+
+### v0.5.4 / DailyLog 1.2 변경점
+
+- Windows Runner에 `LearningLog / Projects / Daily` 메뉴 분리 구조 포함
+- 프로젝트 시리즈 초안 생성기 포함: `local_powershell/run_learninglog_project_series.ps1`
+- register / preview / approve / publish의 section 필터 흐름 포함
+- DailyLog Kit을 저장소에 추가
+- DailyLog Kit에서 Ollama뿐 아니라 Gemini API 키 사용 지원
+
+---
+
 ## v0.5 Beginner Flow — 아무것도 몰라도 쓰는 순서
 
 1. Python 3.10+ 설치 확인: `python --version`
@@ -36,6 +56,58 @@ learninglog ui
 5. **① intake → ② extract → ③ publish → ④ GitHub push** 버튼 클릭
 
 설치·설정·실행을 전부 버튼으로. 터미널 명령 몰라도 됩니다.
+
+---
+
+## Windows 로컬 운영판
+
+Windows에서 전체 로컬 운영판을 쓰려면:
+
+```powershell
+cd local_powershell
+.\LearningLog.bat
+```
+
+첫 화면은 역할별로 나누어져 있습니다.
+
+```text
+[1] LearningLog    학습 기록/발행
+[2] Projects       프로젝트 시리즈
+[3] Daily          별도 회고 기록
+[0] Ollama 서버 시작
+```
+
+`LearningLog`는 수업/학습 합본을, `Projects`는 프로젝트 회고와 분석 시리즈를, `Daily`는 별도 개인 회고 기록을 다룹니다.
+
+---
+
+## DailyLog Kit 1.2
+
+가볍게 하루 회고 Markdown만 만들고 싶다면:
+
+```powershell
+cd dailylog_kit
+.\DailyLog.bat
+```
+
+LLM 없이 템플릿만 만들 수 있고, Ollama 또는 Gemini로 자동 정리할 수도 있습니다.
+
+```powershell
+# Gemini API 키를 한 번만 직접 사용
+.\dailylog.ps1 -Provider gemini -GeminiApiKey "YOUR_KEY"
+
+# Gemini API 키를 dailylog.config.json에 저장
+.\dailylog.ps1 -Provider gemini -GeminiApiKey "YOUR_KEY" -SaveGeminiKey
+
+# 환경변수 사용
+$env:GEMINI_API_KEY = "YOUR_KEY"
+.\dailylog.ps1 -Provider gemini
+
+# Ollama 사용
+.\dailylog.ps1 -Provider ollama -Model gemma3:12b
+```
+
+Gemini 키는 [Google AI Studio](https://aistudio.google.com/app/apikey)에서 받을 수 있습니다. 저장되는 `dailylog.config.json`은 `.gitignore`에 포함되어 있으므로 GitHub에 올리지 않습니다.
 
 ---
 

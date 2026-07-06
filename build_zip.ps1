@@ -23,6 +23,8 @@ $exclude = @(
   '__pycache__', '.pyc',
   '\dist\', '\build\', '.egg-info',
   '\.learninglog\config.yaml',        # ★ 실제 키 파일
+  '\dailylog_kit\dailylog.config.json',
+  '\dailylog_kit\output\',
   '_with_key.bat', 'test_my_gemini.py',
   '\02_extracted\', '\03_working_notes\', '\04_blog_drafts\', '\09_reports\',
   'source_registry.csv'               # 개인 작업 장부

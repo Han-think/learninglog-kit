@@ -36,3 +36,7 @@ tests/fixtures/
 workspace/
 *_with_key.bat
 test_my_gemini.py
+
+# DailyLog Kit local output/secrets
+dailylog_kit/output/
+dailylog_kit/dailylog.config.json
